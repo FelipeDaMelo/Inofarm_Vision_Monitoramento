@@ -32,9 +32,34 @@ export async function POST(request: Request) {
         body: text
       };
     } else if (type === 'audio') {
-      payload.audio = {
-        link: audioUrl
-      };
+      try {
+        // Baixa do Firebase Storage para o backend da Vercel
+        const fileRes = await fetch(audioUrl);
+        const fileBlob = await fileRes.blob();
+
+        // Envia direto para a API de Mídia da Meta (Para evitar problemas com links do Firebase)
+        const form = new FormData();
+        form.append('file', fileBlob, 'audio.ogg');
+        form.append('messaging_product', 'whatsapp');
+
+        const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: form
+        });
+
+        const uploadData = await uploadRes.json();
+        
+        if (uploadData.id) {
+          payload.audio = { id: uploadData.id };
+        } else {
+          console.error('Falha no upload para Meta:', uploadData);
+          payload.audio = { link: audioUrl }; // Tenta link como fallback
+        }
+      } catch (err) {
+        console.error('Erro na conversão do áudio para Meta:', err);
+        payload.audio = { link: audioUrl };
+      }
     }
 
     if (replyToMessageId) {
