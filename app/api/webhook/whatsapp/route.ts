@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const VERIFY_TOKEN = 'f2e6l0i1p8e9';
 
@@ -35,9 +36,47 @@ export async function POST(request: Request) {
           const contactName = value.contacts?.[0]?.profile?.name || phone;
           
           let text = '';
+          let audioUrl = '';
+          let messageType = 'text';
+
           if (msg.type === 'text') text = msg.text.body;
           if (msg.type === 'button') text = msg.button.text;
           if (msg.type === 'image') text = '[Imagem Recebida]'; // Simplificação
+          
+          if (msg.type === 'audio') {
+            messageType = 'audio';
+            text = '🎵 Áudio Recebido';
+            
+            try {
+              const token = process.env.WHATSAPP_TOKEN;
+              const mediaId = msg.audio.id;
+              const mimeType = msg.audio.mime_type;
+              
+              // 1. Pega a URL de download na Meta
+              const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const metaData = await metaRes.json();
+              
+              if (metaData.url) {
+                // 2. Baixa o arquivo binário da Meta
+                const mediaRes = await fetch(metaData.url, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const arrayBuffer = await mediaRes.arrayBuffer();
+                
+                // 3. Salva no Firebase Storage
+                const ext = mimeType.includes('ogg') ? 'ogg' : 'mp3';
+                const filePath = `whatsapp_audios/${phone}/${Date.now()}_${mediaId}.${ext}`;
+                const storageRef = ref(storage, filePath);
+                
+                await uploadBytes(storageRef, arrayBuffer, { contentType: mimeType });
+                audioUrl = await getDownloadURL(storageRef);
+              }
+            } catch (err) {
+              console.error('Erro ao processar áudio', err);
+            }
+          }
           
           if (text) {
             const chatRef = doc(db, 'whatsapp_chats', phone);
@@ -54,10 +93,12 @@ export async function POST(request: Request) {
             await setDoc(msgRef, {
               id: msg.id,
               text,
+              type: messageType,
               sender: 'user',
               timestamp: new Date(parseInt(msg.timestamp) * 1000),
               createdAt: serverTimestamp(),
-              ...(replyToMessageId && { replyToMessageId })
+              ...(replyToMessageId && { replyToMessageId }),
+              ...(audioUrl && { audioUrl })
             });
             console.log(`[WHATSAPP WEBHOOK] Mensagem de ${phone}: ${text}`);
           }

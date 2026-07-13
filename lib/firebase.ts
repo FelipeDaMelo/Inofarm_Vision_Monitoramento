@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
+import { getStorage } from "firebase/storage";
 
 // Credenciais da Central Inofarm Vision
 const firebaseConfig = {
@@ -22,8 +23,9 @@ try {
   console.warn("⚠️ [AVISO] Falha ao inicializar o Firebase.", error);
 }
 
-// Banco de Dados Único da Plataforma
+// Banco de Dados e Storage da Plataforma
 const db = (app ? getFirestore(app) : null) as any;
 const rtdb = (app ? getDatabase(app) : null) as any;
+const storage = (app ? getStorage(app) : null) as any;
 
-export { app, db, rtdb };
+export { app, db, rtdb, storage };

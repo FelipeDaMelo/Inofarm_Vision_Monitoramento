@@ -4,10 +4,10 @@ import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
-    const { to, text, replyToMessageId } = await request.json();
+    const { to, text, replyToMessageId, type = 'text', audioUrl } = await request.json();
 
-    if (!to || !text) {
-      return new NextResponse(JSON.stringify({ error: 'Missing to or text' }), { status: 400 });
+    if (!to) {
+      return new NextResponse(JSON.stringify({ error: 'Missing destination (to)' }), { status: 400 });
     }
 
     const token = process.env.WHATSAPP_TOKEN;
@@ -18,17 +18,24 @@ export async function POST(request: Request) {
     }
 
     const url = `https://graph.facebook.com/v17.0/${phoneId}/messages`;
-    
+
     const payload: any = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: to,
-      type: "text",
-      text: {
+      type: type,
+    };
+
+    if (type === 'text') {
+      payload.text = {
         preview_url: false,
         body: text
-      }
-    };
+      };
+    } else if (type === 'audio') {
+      payload.audio = {
+        link: audioUrl
+      };
+    }
 
     if (replyToMessageId) {
       payload.context = {
@@ -58,18 +65,20 @@ export async function POST(request: Request) {
     
     await setDoc(chatRef, {
       phone: to,
-      lastMessage: text,
+      lastMessage: type === 'audio' ? '🎵 Áudio' : text,
       updatedAt: serverTimestamp(),
     }, { merge: true });
 
     const msgRef = doc(collection(chatRef, 'messages'), msgId);
     await setDoc(msgRef, {
       id: msgId,
-      text,
+      text: type === 'audio' ? '🎵 Áudio' : text,
+      type: type,
       sender: 'bot',
       timestamp: serverTimestamp(),
       createdAt: serverTimestamp(),
-      ...(replyToMessageId && { replyToMessageId })
+      ...(replyToMessageId && { replyToMessageId }),
+      ...(audioUrl && { audioUrl })
     });
 
     return NextResponse.json({ success: true, messageId: msgId });
