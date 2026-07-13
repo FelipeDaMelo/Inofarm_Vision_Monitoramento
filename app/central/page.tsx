@@ -119,21 +119,37 @@ export default function CentralDashboard() {
       }
       try {
         const baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+        console.log(`[ACTION] Enviando ${action} para ${target} na URL: ${baseUrl}/api/toggle-ai`);
         const res = await fetch(`${baseUrl}/api/toggle-ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ target, action })
         });
-        const respData = await res.json();
+        
+        console.log(`[ACTION] Status HTTP: ${res.status}`);
+        const textData = await res.text();
+        console.log(`[ACTION] Resposta Crua:`, textData);
+        
+        let respData;
+        try {
+            respData = JSON.parse(textData);
+        } catch(e) {
+            respData = { error: "Resposta do servidor não é um JSON válido" };
+        }
+        
         if (res.ok) {
-          alert(`✅ Sucesso: ${respData.message}`);
+          const msg = respData.message || "Comando executado com sucesso!";
+          console.log(`[ACTION] Sucesso:`, msg);
+          alert(`✅ Sucesso: ${msg}`);
           // Força atualização do status local
           const statusRes = await fetch(`${baseUrl}/api/status`);
           if (statusRes.ok) setEdgeStatus(await statusRes.json());
         } else {
+          console.error(`[ACTION] Erro retornado:`, respData.error);
           alert(`❌ Erro: ${respData.error}`);
         }
       } catch (error) {
+        console.error(`[ACTION] Falha de conexão:`, error);
         alert(`🚨 Falha de Conexão com o túnel da fazenda: ${error}`);
       }
     };
@@ -303,6 +319,7 @@ export default function CentralDashboard() {
                     // Ajuste de URL garantindo que não duplica a barra
                     const baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
 
+                    console.log(`[OTA] Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na URL: ${baseUrl}/api/update`);
                     alert(`Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na fazenda...`);
 
                     const res = await fetch(`${baseUrl}/api/update`, {
@@ -310,14 +327,29 @@ export default function CentralDashboard() {
                       body: formData,
                     });
 
-                    const data = await res.json();
+                    console.log(`[OTA] Status HTTP: ${res.status}`);
+                    const textData = await res.text();
+                    console.log(`[OTA] Resposta Crua:`, textData);
+                    
+                    let data;
+                    try {
+                        data = JSON.parse(textData);
+                    } catch(e) {
+                        data = { error: "Resposta do servidor não é um JSON válido" };
+                    }
+                    
                     if (res.ok) {
+                      console.log(`[OTA] Sucesso:`, data.message);
                       alert(`✅ Sucesso na Fazenda ${title}: \n\n${data.message}`);
                     } else {
+                      console.error(`[OTA] Erro retornado:`, data.error);
                       alert(`❌ Erro da Fazenda: ${data.error || 'Erro desconhecido'}`);
                     }
                   } catch (error) {
+                    console.error(`[OTA] Falha de conexão:`, error);
                     alert(`🚨 Falha de Conexão com o túnel da fazenda: ${error}`);
+                  } finally {
+                    e.target.value = ''; // Reseta o input para permitir enviar o mesmo arquivo novamente
                   }
                 }
                 // Limpa o input
