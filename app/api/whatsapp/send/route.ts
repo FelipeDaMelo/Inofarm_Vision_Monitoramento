@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
         // Envia direto para a API de Mídia da Meta (Para evitar problemas com links do Firebase)
         const form = new FormData();
-        form.append('file', file);
+        form.append('file', fileBlob, 'audio.ogg');
         form.append('type', 'audio/ogg');
         form.append('messaging_product', 'whatsapp');
 
@@ -92,8 +92,8 @@ export async function POST(request: Request) {
           console.error('Falha no upload para Meta:', uploadData);
           payload.audio = { link: audioUrl }; // Tenta link como fallback
         }
-      } catch (err) {
-        console.error('Erro na conversão do áudio para Meta:', err);
+      } catch (err: any) {
+        console.error('Erro na conversão do áudio para Meta:', err.message || err);
         payload.audio = { link: audioUrl };
       }
     } else if (type === 'image') {

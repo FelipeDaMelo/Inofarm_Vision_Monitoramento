@@ -29,7 +29,7 @@ export default function WaveformPlayer({ url }: { url: string }) {
       barGap: 2,
       barRadius: 2,
       height: 30,
-      url: url,
+      url: `/api/proxy?url=${encodeURIComponent(url)}`,
     });
 
     ws.on('ready', () => {
