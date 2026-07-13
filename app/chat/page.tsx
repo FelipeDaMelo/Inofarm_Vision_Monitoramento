@@ -200,9 +200,9 @@ export default function ChatInbox() {
     
     try {
       // 1. Upload to Firebase Storage
-      const fileName = `whatsapp_audios/${activeChatId}/out_${Date.now()}.webm`;
+      const fileName = `whatsapp_audios/${activeChatId}/out_${Date.now()}.ogg`;
       const storageRef = ref(storage, fileName);
-      await uploadBytes(storageRef, audioBlob);
+      await uploadBytes(storageRef, audioBlob, { contentType: 'audio/ogg; codecs=opus' });
       const audioUrl = await getDownloadURL(storageRef);
 
       const replyId = replyingTo?.id;
