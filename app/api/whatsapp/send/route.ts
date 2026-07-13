@@ -10,7 +10,7 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 export async function POST(request: Request) {
   try {
-    const { to, text, replyToMessageId, type = 'text', audioUrl, imageUrl, documentUrl, documentName } = await request.json();
+    const { to, text, replyToMessageId, type = 'text', audioUrl, imageUrl, documentUrl, documentName, videoUrl } = await request.json();
 
     if (!to) {
       return new NextResponse(JSON.stringify({ error: 'Missing destination (to)' }), { status: 400 });
@@ -156,6 +156,36 @@ export async function POST(request: Request) {
         console.error('Erro na conversão do documento para Meta:', err);
         payload.document = { link: documentUrl, filename: documentName };
       }
+    } else if (type === 'video') {
+      try {
+        const fileRes = await fetch(videoUrl);
+        const fileBlob = await fileRes.blob();
+        
+        const ext = fileBlob.type.includes('mp4') ? 'mp4' : '3gp';
+        const file = new File([fileBlob], `video.${ext}`, { type: fileBlob.type });
+        const form = new FormData();
+        form.append('file', file);
+        form.append('type', fileBlob.type);
+        form.append('messaging_product', 'whatsapp');
+
+        const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: form
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (uploadData.id) {
+          payload.video = { id: uploadData.id };
+        } else {
+          console.error('Falha no upload de vídeo para Meta:', uploadData);
+          payload.video = { link: videoUrl }; // Fallback
+        }
+      } catch (err) {
+        console.error('Erro na conversão do vídeo para Meta:', err);
+        payload.video = { link: videoUrl };
+      }
     }
 
     if (replyToMessageId) {
@@ -186,14 +216,14 @@ export async function POST(request: Request) {
 
     await setDoc(chatRef, {
       phone: to,
-      lastMessage: type === 'audio' ? '🎵 Áudio' : type === 'image' ? '📷 Imagem' : type === 'document' ? '📄 Arquivo' : text,
+      lastMessage: type === 'audio' ? '🎵 Áudio' : type === 'image' ? '📷 Imagem' : type === 'document' ? '📄 Arquivo' : type === 'video' ? '🎥 Vídeo' : text,
       updatedAt: serverTimestamp(),
     }, { merge: true });
 
     const msgRef = doc(collection(chatRef, 'messages'), msgId);
     await setDoc(msgRef, {
       id: msgId,
-      text: type === 'audio' ? '🎵 Áudio' : type === 'image' ? '📷 Imagem' : type === 'document' ? '📄 Arquivo' : (text || ''),
+      text: type === 'audio' ? '🎵 Áudio' : type === 'image' ? '📷 Imagem' : type === 'document' ? '📄 Arquivo' : type === 'video' ? '🎥 Vídeo' : (text || ''),
       type: type,
       sender: 'bot',
       timestamp: serverTimestamp(),
@@ -201,7 +231,8 @@ export async function POST(request: Request) {
       ...(replyToMessageId && { replyToMessageId }),
       ...(audioUrl && { audioUrl }),
       ...(imageUrl && { imageUrl }),
-      ...(documentUrl && { documentUrl, documentName })
+      ...(documentUrl && { documentUrl, documentName }),
+      ...(videoUrl && { videoUrl })
     });
 
     return NextResponse.json({ success: true, messageId: msgId });

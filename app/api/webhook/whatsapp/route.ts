@@ -40,6 +40,7 @@ export async function POST(request: Request) {
           let imageUrl = '';
           let documentUrl = '';
           let documentName = '';
+          let videoUrl = '';
           let messageType = 'text';
 
           if (msg.type === 'text') text = msg.text.body;
@@ -146,13 +147,45 @@ export async function POST(request: Request) {
               console.error('Erro ao processar documento', err);
             }
           }
+
+          if (msg.type === 'video') {
+            messageType = 'video';
+            text = '🎥 Vídeo Recebido';
+            
+            try {
+              const token = process.env.WHATSAPP_TOKEN;
+              const mediaId = msg.video.id;
+              const mimeType = msg.video.mime_type;
+              
+              const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const metaData = await metaRes.json();
+              
+              if (metaData.url) {
+                const mediaRes = await fetch(metaData.url, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const arrayBuffer = await mediaRes.arrayBuffer();
+                
+                const ext = mimeType.includes('mp4') ? 'mp4' : '3gp';
+                const filePath = `whatsapp_videos/${phone}/${Date.now()}_${mediaId}.${ext}`;
+                const storageRef = ref(storage, filePath);
+                
+                await uploadBytes(storageRef, arrayBuffer, { contentType: mimeType });
+                videoUrl = await getDownloadURL(storageRef);
+              }
+            } catch (err) {
+              console.error('Erro ao processar vídeo', err);
+            }
+          }
           
           if (text) {
             const chatRef = doc(db, 'whatsapp_chats', phone);
             await setDoc(chatRef, {
               phone,
               name: contactName,
-              lastMessage: messageType === 'audio' ? '🎵 Áudio' : messageType === 'image' ? '📷 Imagem' : messageType === 'document' ? '📄 Arquivo' : text,
+              lastMessage: messageType === 'audio' ? '🎵 Áudio' : messageType === 'image' ? '📷 Imagem' : messageType === 'document' ? '📄 Arquivo' : messageType === 'video' ? '🎥 Vídeo' : text,
               updatedAt: serverTimestamp(),
               unread: increment(1),
             }, { merge: true });
@@ -170,7 +203,8 @@ export async function POST(request: Request) {
               ...(replyToMessageId && { replyToMessageId }),
               ...(audioUrl && { audioUrl }),
               ...(imageUrl && { imageUrl }),
-              ...(documentUrl && { documentUrl, documentName })
+              ...(documentUrl && { documentUrl, documentName }),
+              ...(videoUrl && { videoUrl })
             });
             console.log(`[WHATSAPP WEBHOOK] Mensagem de ${phone}: ${text}`);
           }

@@ -49,9 +49,9 @@ export default function Sidebar() {
 
   return (
     <div className="w-20 bg-[#2C3E50] flex flex-col items-center py-6 gap-8 text-white/50 border-r border-[#A59D92]/20 z-50 shadow-2xl shrink-0 h-screen">
-      <div className="w-10 h-10 bg-transparent flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer">
+      <a href="/central" className="w-10 h-10 bg-transparent flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer" title="Ir para Monitoramento">
         <img src="/cara_vaca.png" alt="Inofarm" className="w-full h-full object-contain" />
-      </div>
+      </a>
       <div className="flex flex-col gap-6 flex-1">
         <a href="/central" className="hover:text-[#A59D92] transition-colors cursor-pointer" title="Dashboard Central">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>

@@ -28,6 +28,7 @@ interface Message {
   imageUrl?: string;
   documentUrl?: string;
   documentName?: string;
+  videoUrl?: string;
 }
 
 export default function ChatInbox() {
@@ -60,6 +61,10 @@ export default function ChatInbox() {
 
   // Document Upload State
   const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
+
+  // Video Upload State
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
 
   // Escuta os chats (Contatos)
   useEffect(() => {
@@ -119,6 +124,7 @@ export default function ChatInbox() {
           imageUrl: data.imageUrl,
           documentUrl: data.documentUrl,
           documentName: data.documentName,
+          videoUrl: data.videoUrl,
           sender: data.sender,
           timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
           replyToMessageId: data.replyToMessageId,
@@ -339,6 +345,51 @@ export default function ChatInbox() {
     }
   };
 
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedVideoFile(file);
+      setSelectedVideoUrl(URL.createObjectURL(file));
+    }
+    e.target.value = '';
+  };
+
+  const sendVideoMessage = async () => {
+    if (!selectedVideoFile || !activeChatId) return;
+
+    setIsSending(true);
+    try {
+      // 1. Upload to Firebase Storage
+      const fileName = `whatsapp_videos/${activeChatId}/out_${Date.now()}_${selectedVideoFile.name}`;
+      const storageRef = ref(storage, fileName);
+      await uploadBytes(storageRef, selectedVideoFile);
+      const videoUrl = await getDownloadURL(storageRef);
+
+      // 2. Call API
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: activeChatId,
+          type: 'video',
+          videoUrl: videoUrl,
+          replyToMessageId: replyingTo?.id || undefined
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erro na API");
+
+      setSelectedVideoFile(null);
+      setSelectedVideoUrl(null);
+      setReplyingTo(null);
+    } catch (err) {
+      console.error('Erro ao enviar vídeo:', err);
+      alert('Erro ao enviar vídeo.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const formatRecordingTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -354,7 +405,7 @@ export default function ChatInbox() {
       {/* Lista de Conversas (Esquerda) */}
       <div className="w-96 bg-white border-r border-slate-200 flex flex-col shadow-sm z-0">
         <div className="h-20 bg-slate-50 flex items-center px-6 border-b border-slate-200 justify-between">
-          <h1 className="text-xl font-bold text-[#2C3E50]">Central Inbox</h1>
+          <h1 className="text-xl font-bold text-[#2C3E50]">WhatsApp INOFARM VISION</h1>
         </div>
         
         <div className="p-4">
@@ -384,7 +435,7 @@ export default function ChatInbox() {
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-slate-500 truncate pr-2">{chat.lastMessage}</p>
                   {chat.unread > 0 && (
-                    <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    <span className="bg-[#2C3E50] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                       {chat.unread}
                     </span>
                   )}
@@ -462,11 +513,27 @@ export default function ChatInbox() {
 
             {/* Messages View */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
-              {messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-start' : 'justify-end'} group`}>
-                  
-                  {/* Reply Button for Bot Messages */}
-                  {msg.sender === 'bot' && (
+              {messages.map((msg, index) => {
+                const prevMsg = index > 0 ? messages[index - 1] : null;
+                const showDate = !prevMsg || msg.timestamp.toLocaleDateString() !== prevMsg.timestamp.toLocaleDateString();
+                const dateStr = msg.timestamp.toLocaleDateString('pt-BR');
+                const today = new Date().toLocaleDateString('pt-BR');
+                const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('pt-BR');
+                const dateText = dateStr === today ? 'Hoje' : dateStr === yesterday ? 'Ontem' : dateStr;
+
+                return (
+                  <div key={msg.id} className="flex flex-col gap-4">
+                    {showDate && (
+                      <div className="flex justify-center my-1">
+                        <span className="bg-white/90 text-slate-600 text-xs font-medium px-4 py-1.5 rounded-lg shadow-sm border border-slate-200/50">
+                          {dateText}
+                        </span>
+                      </div>
+                    )}
+                    <div className={`flex ${msg.sender === 'user' ? 'justify-start' : 'justify-end'} group`}>
+                      
+                      {/* Reply Button for Bot Messages */}
+                      {msg.sender === 'bot' && (
                     <div className="hidden group-hover:flex items-center justify-center pr-2">
                       <button onClick={() => setReplyingTo(msg)} className="text-slate-400 hover:text-slate-600 p-1 bg-white rounded-full shadow-sm" title="Responder">
                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
@@ -501,6 +568,11 @@ export default function ChatInbox() {
                         </div>
                         {msg.text && !msg.text.includes('Arquivo Recebido') && <p className="text-sm whitespace-pre-wrap mt-1">{msg.text}</p>}
                       </div>
+                    ) : msg.type === 'video' && msg.videoUrl ? (
+                      <div className="mb-1">
+                        <video controls src={msg.videoUrl} className="max-w-[250px] max-h-[300px] rounded-lg bg-black" />
+                        {msg.text && msg.text !== '🎥 Vídeo Recebido' && <p className="text-sm whitespace-pre-wrap mt-2">{msg.text}</p>}
+                      </div>
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     )}
@@ -521,7 +593,8 @@ export default function ChatInbox() {
                     </div>
                   )}
                 </div>
-              ))}
+              </div>
+              )})}
               <div ref={messagesEndRef} />
             </div>
 
@@ -600,16 +673,34 @@ export default function ChatInbox() {
                       </button>
                     </div>
                   </div>
+                ) : selectedVideoUrl ? (
+                  <div className="flex-1 bg-white rounded-xl flex flex-col p-4 shadow-sm border border-slate-200">
+                    <div className="relative mb-3 flex justify-center bg-black/5 rounded-lg border border-slate-200 p-2 max-h-[150px]">
+                      <video controls src={selectedVideoUrl} className="max-h-[130px] rounded-md" />
+                      <button 
+                        onClick={() => { setSelectedVideoFile(null); setSelectedVideoUrl(null); }} 
+                        className="absolute -top-3 -right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-colors"
+                        title="Remover Vídeo"
+                        disabled={isSending}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-3 shadow-sm border border-slate-200">
                     <button className="text-slate-400 hover:text-slate-600 mr-2" title="Anexar Documento" onClick={() => document.getElementById('documentInput')?.click()}>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
                     </button>
-                    <button className="text-slate-400 hover:text-slate-600 mr-3" title="Anexar Imagem" onClick={() => document.getElementById('imageInput')?.click()}>
+                    <button className="text-slate-400 hover:text-slate-600 mr-2" title="Anexar Imagem" onClick={() => document.getElementById('imageInput')?.click()}>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <button className="text-slate-400 hover:text-slate-600 mr-3" title="Anexar Vídeo" onClick={() => document.getElementById('videoInput')?.click()}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                     </button>
                     <input type="file" id="imageInput" accept="image/*" className="hidden" onChange={handleImageSelect} />
                     <input type="file" id="documentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" className="hidden" onChange={handleDocumentSelect} />
+                    <input type="file" id="videoInput" accept="video/mp4,video/3gpp,video/quicktime" className="hidden" onChange={handleVideoSelect} />
                     <input 
                       type="text" 
                       value={inputText}
@@ -628,13 +719,20 @@ export default function ChatInbox() {
                     title="Concluir Gravação">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                   </button>
-                ) : recordedAudioUrl || selectedImageUrl || selectedDocumentFile || inputText.trim() ? (
+                ) : recordedAudioUrl || selectedImageUrl || selectedDocumentFile || selectedVideoUrl || inputText.trim() ? (
                   <button 
-                    onClick={recordedAudioUrl ? () => sendAudioMessage(recordedAudioBlob!) : selectedImageUrl ? sendImageMessage : selectedDocumentFile ? sendDocumentMessage : sendMessage}
+                    onClick={recordedAudioUrl ? () => sendAudioMessage(recordedAudioBlob!) : selectedImageUrl ? sendImageMessage : selectedDocumentFile ? sendDocumentMessage : selectedVideoUrl ? sendVideoMessage : sendMessage}
                     disabled={isSending}
-                    className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105"
+                    className={`${isSending ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#2C3E50] hover:bg-[#2C3E50]/90 hover:scale-105'} text-white p-3 rounded-full shadow-md transition-transform flex items-center justify-center`}
                     title="Enviar">
-                    <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    {isSending ? (
+                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    )}
                   </button>
                 ) : (
                   <button 
