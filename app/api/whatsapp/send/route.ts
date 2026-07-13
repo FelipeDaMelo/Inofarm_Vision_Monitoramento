@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     const msgRef = doc(collection(chatRef, 'messages'), msgId);
     await setDoc(msgRef, {
       id: msgId,
-      text: type === 'audio' ? '🎵 Áudio' : text,
+      text: type === 'audio' ? '🎵 Áudio' : type === 'image' ? '📷 Imagem' : type === 'document' ? '📄 Arquivo' : (text || ''),
       type: type,
       sender: 'bot',
       timestamp: serverTimestamp(),
