@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         // Envia direto para a API de Mídia da Meta (Para evitar problemas com links do Firebase)
         const form = new FormData();
         form.append('file', fileBlob, 'audio.ogg');
+        form.append('type', 'audio/ogg');
         form.append('messaging_product', 'whatsapp');
 
         const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {

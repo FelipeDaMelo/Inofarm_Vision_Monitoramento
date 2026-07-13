@@ -88,6 +88,9 @@ export default function ChatInbox() {
   useEffect(() => {
     if (!activeChatId) return;
 
+    // Reseta as mensagens não lidas deste chat assim que ele é aberto
+    updateDoc(doc(db, "whatsapp_chats", activeChatId), { unread: 0 });
+
     const q = query(
       collection(db, "whatsapp_chats", activeChatId, "messages"),
       orderBy("timestamp", "asc")
@@ -265,14 +268,14 @@ export default function ChatInbox() {
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline mb-1">
-                  <h2 className="font-semibold text-slate-800 truncate">{chat.name}</h2>
-                  <span className={`text-xs ${chat.unread > 0 ? 'text-green-600 font-bold' : 'text-slate-400'}`}>{chat.time}</span>
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="font-semibold text-slate-800 truncate pr-2">{chat.name}</h3>
+                  <span className="text-xs text-slate-400 whitespace-nowrap">{chat.time}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <p className="text-sm text-slate-500 truncate">{chat.lastMessage}</p>
+                  <p className="text-sm text-slate-500 truncate pr-2">{chat.lastMessage}</p>
                   {chat.unread > 0 && (
-                    <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                       {chat.unread}
                     </span>
                   )}

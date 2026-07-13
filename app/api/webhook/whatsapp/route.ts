@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase';
-import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, collection, serverTimestamp, increment } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const VERIFY_TOKEN = 'f2e6l0i1p8e9';
@@ -83,8 +83,9 @@ export async function POST(request: Request) {
             await setDoc(chatRef, {
               phone,
               name: contactName,
-              lastMessage: text,
+              lastMessage: messageType === 'audio' ? '🎵 Áudio' : text,
               updatedAt: serverTimestamp(),
+              unread: increment(1),
             }, { merge: true });
 
             const replyToMessageId = msg.context?.id || null;
@@ -101,6 +102,15 @@ export async function POST(request: Request) {
               ...(audioUrl && { audioUrl })
             });
             console.log(`[WHATSAPP WEBHOOK] Mensagem de ${phone}: ${text}`);
+          }
+        }
+        
+        // 2. Processar status de entrega
+        if (value.statuses && value.statuses[0]) {
+          const status = value.statuses[0];
+          console.log(`[WHATSAPP STATUS] Status: ${status.status}, Recipient: ${status.recipient_id}`);
+          if (status.errors) {
+            console.error(`[WHATSAPP ERROR] Meta Error details:`, JSON.stringify(status.errors, null, 2));
           }
         }
       }

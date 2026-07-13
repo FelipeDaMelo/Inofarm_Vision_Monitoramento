@@ -8,9 +8,35 @@ export default function Sidebar() {
   const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
+    // Pede permissão de notificação no browser se não tiver
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
+    let isInitialLoad = true;
+
     // Escuta todos os chats para ver se tem alguma mensagem não lida
     const unsubscribe = onSnapshot(collection(db, "whatsapp_chats"), (snapshot) => {
       let unread = false;
+
+      if (!isInitialLoad) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "modified" || change.type === "added") {
+            const data = change.doc.data();
+            // Se recebeu mensagem nova (unread subiu)
+            if (data.unread > 0) {
+              if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(`Mensagem de ${data.name || data.phone}`, {
+                  body: data.lastMessage,
+                  icon: "/cara_vaca.png"
+                });
+              }
+            }
+          }
+        });
+      }
+      isInitialLoad = false;
+
       snapshot.forEach((doc) => {
         if (doc.data().unread > 0) {
           unread = true;
