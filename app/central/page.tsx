@@ -119,7 +119,7 @@ export default function CentralDashboard() {
       }
       try {
         const baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
-        const res = await fetch(`${baseUrl}/api/action`, {
+        const res = await fetch(`${baseUrl}/api/toggle-ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ target, action })
