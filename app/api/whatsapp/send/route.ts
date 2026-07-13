@@ -10,7 +10,7 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 export async function POST(request: Request) {
   try {
-    const { to, text, replyToMessageId, type = 'text', audioUrl } = await request.json();
+    const { to, text, replyToMessageId, type = 'text', audioUrl, imageUrl, documentUrl, documentName } = await request.json();
 
     if (!to) {
       return new NextResponse(JSON.stringify({ error: 'Missing destination (to)' }), { status: 400 });
@@ -96,6 +96,66 @@ export async function POST(request: Request) {
         console.error('Erro na conversão do áudio para Meta:', err);
         payload.audio = { link: audioUrl };
       }
+    } else if (type === 'image') {
+      try {
+        const fileRes = await fetch(imageUrl);
+        const fileBlob = await fileRes.blob();
+        
+        const ext = fileBlob.type.includes('png') ? 'png' : 'jpg';
+        const file = new File([fileBlob], `image.${ext}`, { type: fileBlob.type });
+        const form = new FormData();
+        form.append('file', file);
+        form.append('type', fileBlob.type);
+        form.append('messaging_product', 'whatsapp');
+
+        const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: form
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (uploadData.id) {
+          payload.image = { id: uploadData.id };
+        } else {
+          console.error('Falha no upload de imagem para Meta:', uploadData);
+          payload.image = { link: imageUrl }; // Fallback
+        }
+      } catch (err) {
+        console.error('Erro na conversão da imagem para Meta:', err);
+        payload.image = { link: imageUrl };
+      }
+    } else if (type === 'document') {
+      try {
+        const fileRes = await fetch(documentUrl);
+        const fileBlob = await fileRes.blob();
+        
+        const ext = documentName.split('.').pop() || 'pdf';
+        const file = new File([fileBlob], documentName, { type: fileBlob.type });
+        const form = new FormData();
+        form.append('file', file);
+        form.append('type', fileBlob.type);
+        form.append('messaging_product', 'whatsapp');
+
+        const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: form
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (uploadData.id) {
+          payload.document = { id: uploadData.id, filename: documentName };
+        } else {
+          console.error('Falha no upload do documento para Meta:', uploadData);
+          payload.document = { link: documentUrl, filename: documentName }; // Fallback
+        }
+      } catch (err) {
+        console.error('Erro na conversão do documento para Meta:', err);
+        payload.document = { link: documentUrl, filename: documentName };
+      }
     }
 
     if (replyToMessageId) {
@@ -126,7 +186,7 @@ export async function POST(request: Request) {
 
     await setDoc(chatRef, {
       phone: to,
-      lastMessage: type === 'audio' ? '🎵 Áudio' : text,
+      lastMessage: type === 'audio' ? '🎵 Áudio' : type === 'image' ? '📷 Imagem' : type === 'document' ? '📄 Arquivo' : text,
       updatedAt: serverTimestamp(),
     }, { merge: true });
 
@@ -139,7 +199,9 @@ export async function POST(request: Request) {
       timestamp: serverTimestamp(),
       createdAt: serverTimestamp(),
       ...(replyToMessageId && { replyToMessageId }),
-      ...(audioUrl && { audioUrl })
+      ...(audioUrl && { audioUrl }),
+      ...(imageUrl && { imageUrl }),
+      ...(documentUrl && { documentUrl, documentName })
     });
 
     return NextResponse.json({ success: true, messageId: msgId });

@@ -25,6 +25,9 @@ interface Message {
   replyToMessageId?: string;
   type?: string;
   audioUrl?: string;
+  imageUrl?: string;
+  documentUrl?: string;
+  documentName?: string;
 }
 
 export default function ChatInbox() {
@@ -33,6 +36,7 @@ export default function ChatInbox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isSending, setIsSending] = useState(false);
 
   // Edit Name State
   const [isEditingName, setIsEditingName] = useState(false);
@@ -49,6 +53,13 @@ export default function ChatInbox() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+
+  // Image Upload State
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+
+  // Document Upload State
+  const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
 
   // Escuta os chats (Contatos)
   useEffect(() => {
@@ -225,8 +236,103 @@ export default function ChatInbox() {
           replyToMessageId: replyId 
         })
       });
+
+      setRecordedAudioBlob(null);
+      setRecordedAudioUrl(null);
     } catch (err) {
-      console.error("Erro ao enviar áudio:", err);
+      console.error('Erro ao enviar áudio:', err);
+      alert('Erro ao enviar áudio.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImageFile(file);
+      setSelectedImageUrl(URL.createObjectURL(file));
+    }
+    // Reseta o input para permitir selecionar a mesma imagem novamente se necessário
+    e.target.value = '';
+  };
+
+  const sendImageMessage = async () => {
+    if (!selectedImageFile || !activeChatId) return;
+
+    setIsSending(true);
+    try {
+      // 1. Upload to Firebase Storage
+      const fileName = `whatsapp_images/${activeChatId}/out_${Date.now()}_${selectedImageFile.name}`;
+      const storageRef = ref(storage, fileName);
+      await uploadBytes(storageRef, selectedImageFile);
+      const imageUrl = await getDownloadURL(storageRef);
+
+      // 2. Call API
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: activeChatId,
+          type: 'image',
+          imageUrl: imageUrl,
+          replyToMessageId: replyingTo?.id || undefined
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erro na API");
+
+      setSelectedImageFile(null);
+      setSelectedImageUrl(null);
+      setReplyingTo(null);
+    } catch (err) {
+      console.error('Erro ao enviar imagem:', err);
+      alert('Erro ao enviar imagem.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleDocumentSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedDocumentFile(e.target.files[0]);
+    }
+    e.target.value = '';
+  };
+
+  const sendDocumentMessage = async () => {
+    if (!selectedDocumentFile || !activeChatId) return;
+
+    setIsSending(true);
+    try {
+      // 1. Upload to Firebase Storage
+      const fileName = `whatsapp_documents/${activeChatId}/out_${Date.now()}_${selectedDocumentFile.name}`;
+      const storageRef = ref(storage, fileName);
+      await uploadBytes(storageRef, selectedDocumentFile);
+      const documentUrl = await getDownloadURL(storageRef);
+
+      // 2. Call API
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: activeChatId,
+          type: 'document',
+          documentUrl: documentUrl,
+          documentName: selectedDocumentFile.name,
+          replyToMessageId: replyingTo?.id || undefined
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erro na API");
+
+      setSelectedDocumentFile(null);
+      setReplyingTo(null);
+    } catch (err) {
+      console.error('Erro ao enviar documento:', err);
+      alert('Erro ao enviar documento.');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -377,6 +483,21 @@ export default function ChatInbox() {
 
                     {msg.type === 'audio' && msg.audioUrl ? (
                       <audio controls src={msg.audioUrl} className="w-60 h-10 mb-1" />
+                    ) : msg.type === 'image' && msg.imageUrl ? (
+                      <div className="mb-1">
+                        <img src={msg.imageUrl} alt="Imagem Recebida" className="max-w-[250px] max-h-[300px] rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(msg.imageUrl, '_blank')} />
+                        {msg.text && msg.text !== '📷 Imagem Recebida' && <p className="text-sm whitespace-pre-wrap mt-2">{msg.text}</p>}
+                      </div>
+                    ) : msg.type === 'document' && msg.documentUrl ? (
+                      <div className="mb-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-3 bg-slate-100/50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => window.open(msg.documentUrl, '_blank')}>
+                          <div className="p-2 bg-blue-100 text-blue-600 rounded-full">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                          </div>
+                          <span className="text-sm font-medium text-slate-700 truncate max-w-[200px]">{msg.documentName || 'Documento'}</span>
+                        </div>
+                        {msg.text && !msg.text.includes('Arquivo Recebido') && <p className="text-sm whitespace-pre-wrap mt-1">{msg.text}</p>}
+                      </div>
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     )}
@@ -440,8 +561,52 @@ export default function ChatInbox() {
                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                   </div>
+                ) : selectedImageUrl ? (
+                  <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-2 shadow-sm border border-slate-200 justify-between">
+                    <div className="flex items-center gap-4">
+                      <img src={selectedImageUrl} alt="Preview" className="h-14 w-14 object-cover rounded-md border border-slate-200" />
+                      <span className="text-sm text-slate-600 font-medium truncate max-w-[200px]">{selectedImageFile?.name}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <button 
+                        onClick={() => { setSelectedImageFile(null); setSelectedImageUrl(null); }} 
+                        className="text-red-500 hover:text-red-700 p-2 mr-2"
+                        title="Cancelar Imagem"
+                        disabled={isSending}
+                      >
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedDocumentFile ? (
+                  <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-2 shadow-sm border border-slate-200 justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 bg-blue-50 text-blue-500 rounded-md">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                      </div>
+                      <span className="text-sm text-slate-600 font-medium truncate max-w-[200px]">{selectedDocumentFile.name}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <button 
+                        onClick={() => setSelectedDocumentFile(null)} 
+                        className="text-red-500 hover:text-red-700 p-2 mr-2"
+                        title="Cancelar Documento"
+                        disabled={isSending}
+                      >
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-3 shadow-sm border border-slate-200">
+                    <button className="text-slate-400 hover:text-slate-600 mr-2" title="Anexar Documento" onClick={() => document.getElementById('documentInput')?.click()}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                    </button>
+                    <button className="text-slate-400 hover:text-slate-600 mr-3" title="Anexar Imagem" onClick={() => document.getElementById('imageInput')?.click()}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                    <input type="file" id="documentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" className="hidden" onChange={handleDocumentSelect} />
                     <input 
                       type="text" 
                       value={inputText}
@@ -460,33 +625,21 @@ export default function ChatInbox() {
                     title="Concluir Gravação">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                   </button>
-                ) : recordedAudioUrl ? (
+                ) : recordedAudioUrl || selectedImageUrl || selectedDocumentFile || inputText.trim() ? (
                   <button 
-                    onClick={() => {
-                      if (recordedAudioBlob) sendAudioMessage(recordedAudioBlob);
-                      setRecordedAudioBlob(null);
-                      setRecordedAudioUrl(null);
-                    }}
+                    onClick={recordedAudioUrl ? () => sendAudioMessage(recordedAudioBlob!) : selectedImageUrl ? sendImageMessage : selectedDocumentFile ? sendDocumentMessage : sendMessage}
+                    disabled={isSending}
                     className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105"
-                    title="Enviar Áudio">
+                    title="Enviar">
                     <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                   </button>
                 ) : (
-                  inputText.trim() ? (
-                    <button 
-                      onClick={sendMessage}
-                      className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105"
-                      title="Enviar">
-                      <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={startRecording}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-600 p-3 rounded-full shadow-md transition-colors"
-                      title="Gravar Áudio">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-                    </button>
-                  )
+                  <button 
+                    onClick={startRecording}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-600 p-3 rounded-full shadow-md transition-colors"
+                    title="Gravar Áudio">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                  </button>
                 )}
               </div>
             </div>

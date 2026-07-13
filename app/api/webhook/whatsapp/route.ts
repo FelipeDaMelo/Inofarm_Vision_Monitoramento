@@ -37,11 +37,48 @@ export async function POST(request: Request) {
           
           let text = '';
           let audioUrl = '';
+          let imageUrl = '';
+          let documentUrl = '';
+          let documentName = '';
           let messageType = 'text';
 
           if (msg.type === 'text') text = msg.text.body;
           if (msg.type === 'button') text = msg.button.text;
-          if (msg.type === 'image') text = '[Imagem Recebida]'; // Simplificação
+          
+          if (msg.type === 'image') {
+            messageType = 'image';
+            text = '📷 Imagem Recebida';
+            
+            try {
+              const token = process.env.WHATSAPP_TOKEN;
+              const mediaId = msg.image.id;
+              const mimeType = msg.image.mime_type;
+              
+              // 1. Pega a URL de download na Meta
+              const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const metaData = await metaRes.json();
+              
+              if (metaData.url) {
+                // 2. Baixa o arquivo binário da Meta
+                const mediaRes = await fetch(metaData.url, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const arrayBuffer = await mediaRes.arrayBuffer();
+                
+                // 3. Salva no Firebase Storage
+                const ext = mimeType.includes('png') ? 'png' : 'jpg';
+                const filePath = `whatsapp_images/${phone}/${Date.now()}_${mediaId}.${ext}`;
+                const storageRef = ref(storage, filePath);
+                
+                await uploadBytes(storageRef, arrayBuffer, { contentType: mimeType });
+                imageUrl = await getDownloadURL(storageRef);
+              }
+            } catch (err) {
+              console.error('Erro ao processar imagem', err);
+            }
+          }
           
           if (msg.type === 'audio') {
             messageType = 'audio';
@@ -78,12 +115,44 @@ export async function POST(request: Request) {
             }
           }
           
+          if (msg.type === 'document') {
+            messageType = 'document';
+            documentName = msg.document.filename || 'documento';
+            text = `📄 Arquivo Recebido: ${documentName}`;
+            
+            try {
+              const token = process.env.WHATSAPP_TOKEN;
+              const mediaId = msg.document.id;
+              const mimeType = msg.document.mime_type;
+              
+              const metaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const metaData = await metaRes.json();
+              
+              if (metaData.url) {
+                const mediaRes = await fetch(metaData.url, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const arrayBuffer = await mediaRes.arrayBuffer();
+                
+                const filePath = `whatsapp_documents/${phone}/${Date.now()}_${documentName}`;
+                const storageRef = ref(storage, filePath);
+                
+                await uploadBytes(storageRef, arrayBuffer, { contentType: mimeType });
+                documentUrl = await getDownloadURL(storageRef);
+              }
+            } catch (err) {
+              console.error('Erro ao processar documento', err);
+            }
+          }
+          
           if (text) {
             const chatRef = doc(db, 'whatsapp_chats', phone);
             await setDoc(chatRef, {
               phone,
               name: contactName,
-              lastMessage: messageType === 'audio' ? '🎵 Áudio' : text,
+              lastMessage: messageType === 'audio' ? '🎵 Áudio' : messageType === 'image' ? '📷 Imagem' : messageType === 'document' ? '📄 Arquivo' : text,
               updatedAt: serverTimestamp(),
               unread: increment(1),
             }, { merge: true });
@@ -99,7 +168,9 @@ export async function POST(request: Request) {
               timestamp: new Date(parseInt(msg.timestamp) * 1000),
               createdAt: serverTimestamp(),
               ...(replyToMessageId && { replyToMessageId }),
-              ...(audioUrl && { audioUrl })
+              ...(audioUrl && { audioUrl }),
+              ...(imageUrl && { imageUrl }),
+              ...(documentUrl && { documentUrl, documentName })
             });
             console.log(`[WHATSAPP WEBHOOK] Mensagem de ${phone}: ${text}`);
           }
