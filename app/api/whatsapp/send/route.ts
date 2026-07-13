@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       };
     } else if (type === 'audio') {
       try {
-        // Baixa do Firebase Storage para o backend da Vercel
+        // Baixa do Firebase Storage para o backend da Vercel agora
         const fileRes = await fetch(audioUrl);
         const fileBlob = await fileRes.blob();
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         });
 
         const uploadData = await uploadRes.json();
-        
+
         if (uploadData.id) {
           payload.audio = { id: uploadData.id };
         } else {
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     // Salva a mensagem no Firebase para aparecer no frontend
     const msgId = data.messages?.[0]?.id || `out_${Date.now()}`;
     const chatRef = doc(db, 'whatsapp_chats', to);
-    
+
     await setDoc(chatRef, {
       phone: to,
       lastMessage: type === 'audio' ? '🎵 Áudio' : text,
