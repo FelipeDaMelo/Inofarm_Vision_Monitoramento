@@ -60,6 +60,8 @@ export async function POST(request: Request) {
           ffmpeg(inputStream)
             .toFormat('ogg')
             .audioCodec('libopus')
+            .audioChannels(1)
+            .audioFrequency(48000)
             .on('end', resolve)
             .on('error', reject)
             .pipe(outputStream);
