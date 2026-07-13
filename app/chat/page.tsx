@@ -21,6 +21,7 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  replyToMessageId?: string;
 }
 
 export default function ChatInbox() {
@@ -29,6 +30,13 @@ export default function ChatInbox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Edit Name State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  // Reply State
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   // Escuta os chats (Contatos)
   useEffect(() => {
@@ -82,6 +90,7 @@ export default function ChatInbox() {
           text: data.text,
           sender: data.sender,
           timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
+          replyToMessageId: data.replyToMessageId,
         });
       });
       setMessages(msgs);
@@ -102,13 +111,15 @@ export default function ChatInbox() {
     if (!inputText.trim() || !activeChatId) return;
     
     const textToSend = inputText;
+    const replyId = replyingTo?.id;
     setInputText(""); // limpa logo
+    setReplyingTo(null);
 
     try {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: activeChatId, text: textToSend })
+        body: JSON.stringify({ to: activeChatId, text: textToSend, replyToMessageId: replyId })
       });
       if (!res.ok) {
         console.error("Falha ao enviar mensagem");
@@ -185,7 +196,49 @@ export default function ChatInbox() {
                   {activeChat.name.charAt(0)}
                 </div>
                 <div>
-                  <h2 className="font-bold text-slate-800">{activeChat.name}</h2>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            if (newName.trim()) {
+                              updateDoc(doc(db, "whatsapp_chats", activeChat.id), { name: newName.trim() });
+                            }
+                            setIsEditingName(false);
+                          }
+                        }}
+                        className="border border-slate-300 rounded px-2 py-1 text-sm text-slate-800 outline-none focus:border-[#A59D92]"
+                        autoFocus
+                      />
+                      <button 
+                        onClick={() => {
+                          if (newName.trim()) {
+                            updateDoc(doc(db, "whatsapp_chats", activeChat.id), { name: newName.trim() });
+                          }
+                          setIsEditingName(false);
+                        }}
+                        className="text-green-600 hover:text-green-700 p-1"
+                        title="Salvar"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                      </button>
+                      <button 
+                        onClick={() => setIsEditingName(false)}
+                        className="text-red-500 hover:text-red-600 p-1"
+                        title="Cancelar"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group cursor-pointer" onClick={() => { setIsEditingName(true); setNewName(activeChat.name); }}>
+                      <h2 className="font-bold text-slate-800">{activeChat.name}</h2>
+                      <svg className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    </div>
+                  )}
                   <p className="text-xs text-slate-500">{activeChat.phone}</p>
                 </div>
               </div>
@@ -194,8 +247,27 @@ export default function ChatInbox() {
             {/* Messages View */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
               {messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-start' : 'justify-end'}`}>
+                <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-start' : 'justify-end'} group`}>
+                  
+                  {/* Reply Button for Bot Messages */}
+                  {msg.sender === 'bot' && (
+                    <div className="hidden group-hover:flex items-center justify-center pr-2">
+                      <button onClick={() => setReplyingTo(msg)} className="text-slate-400 hover:text-slate-600 p-1 bg-white rounded-full shadow-sm" title="Responder">
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                      </button>
+                    </div>
+                  )}
+
                   <div className={`max-w-md rounded-2xl px-4 py-2 shadow-sm relative ${msg.sender === 'user' ? 'bg-white text-slate-800 rounded-tl-none' : 'bg-[#d9fdd3] text-slate-800 rounded-tr-none'}`}>
+                    
+                    {/* Quoted Message (if it's a reply) */}
+                    {msg.replyToMessageId && (
+                      <div className="mb-2 p-2 bg-black/5 border-l-4 border-[#2C3E50]/40 rounded text-xs opacity-80 truncate">
+                        <span className="font-semibold block mb-1">Citação</span>
+                        {messages.find(m => m.id === msg.replyToMessageId)?.text || "Mensagem original"}
+                      </div>
+                    )}
+
                     <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     <div className="flex justify-end items-center gap-1 mt-1">
                       <span className="text-[10px] text-slate-400">
@@ -203,28 +275,55 @@ export default function ChatInbox() {
                       </span>
                     </div>
                   </div>
+
+                  {/* Reply Button for User Messages */}
+                  {msg.sender === 'user' && (
+                    <div className="hidden group-hover:flex items-center justify-center pl-2">
+                      <button onClick={() => setReplyingTo(msg)} className="text-slate-400 hover:text-slate-600 p-1 bg-white rounded-full shadow-sm" title="Responder">
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
-            <div className="bg-[#f0f2f5] p-4 flex items-center gap-4 z-10">
-              <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-3 shadow-sm border border-slate-200">
-                <input 
-                  type="text" 
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Digite uma mensagem" 
-                  className="flex-1 bg-transparent outline-none text-slate-700" 
-                />
+            <div className="bg-[#f0f2f5] p-4 flex flex-col z-10">
+              
+              {/* Replying To Preview Box */}
+              {replyingTo && (
+                <div className="mb-2 mx-12 p-3 bg-white border-l-4 border-[#2C3E50] rounded shadow-sm flex justify-between items-start">
+                  <div className="flex-1 truncate">
+                    <span className="text-xs font-bold text-[#2C3E50] block mb-1">
+                      Respondendo a {replyingTo.sender === 'user' ? activeChat.name : 'Você'}
+                    </span>
+                    <span className="text-sm text-slate-600 truncate block">{replyingTo.text}</span>
+                  </div>
+                  <button onClick={() => setReplyingTo(null)} className="text-slate-400 hover:text-red-500 ml-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-3 shadow-sm border border-slate-200">
+                  <input 
+                    type="text" 
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                    placeholder="Digite uma mensagem" 
+                    className="flex-1 bg-transparent outline-none text-slate-700" 
+                  />
+                </div>
+                <button 
+                  onClick={sendMessage}
+                  className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105">
+                  <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                </button>
               </div>
-              <button 
-                onClick={sendMessage}
-                className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105">
-                <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
-              </button>
             </div>
           </>
         ) : (

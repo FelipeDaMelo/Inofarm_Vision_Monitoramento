@@ -4,7 +4,7 @@ import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
-    const { to, text } = await request.json();
+    const { to, text, replyToMessageId } = await request.json();
 
     if (!to || !text) {
       return new NextResponse(JSON.stringify({ error: 'Missing to or text' }), { status: 400 });
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const url = `https://graph.facebook.com/v17.0/${phoneId}/messages`;
     
-    const payload = {
+    const payload: any = {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: to,
@@ -29,6 +29,12 @@ export async function POST(request: Request) {
         body: text
       }
     };
+
+    if (replyToMessageId) {
+      payload.context = {
+        message_id: replyToMessageId
+      };
+    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -60,9 +66,10 @@ export async function POST(request: Request) {
     await setDoc(msgRef, {
       id: msgId,
       text,
-      sender: 'bot', // ou 'agent'
-      timestamp: new Date(),
-      createdAt: serverTimestamp()
+      sender: 'bot',
+      timestamp: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      ...(replyToMessageId && { replyToMessageId })
     });
 
     return NextResponse.json({ success: true, messageId: msgId });

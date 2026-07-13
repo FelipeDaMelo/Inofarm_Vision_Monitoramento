@@ -48,13 +48,16 @@ export async function POST(request: Request) {
               updatedAt: serverTimestamp(),
             }, { merge: true });
 
+            const replyToMessageId = msg.context?.id || null;
+
             const msgRef = doc(collection(chatRef, 'messages'), msg.id);
             await setDoc(msgRef, {
               id: msg.id,
               text,
               sender: 'user',
               timestamp: new Date(parseInt(msg.timestamp) * 1000),
-              createdAt: serverTimestamp()
+              createdAt: serverTimestamp(),
+              ...(replyToMessageId && { replyToMessageId })
             });
             console.log(`[WHATSAPP WEBHOOK] Mensagem de ${phone}: ${text}`);
           }
