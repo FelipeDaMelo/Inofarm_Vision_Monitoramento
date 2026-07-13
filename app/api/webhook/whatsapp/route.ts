@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, storage } from '@/lib/firebase';
-import { doc, setDoc, collection, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, setDoc, collection, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const VERIFY_TOKEN = 'f2e6l0i1p8e9';
@@ -41,6 +41,8 @@ export async function POST(request: Request) {
           let documentUrl = '';
           let documentName = '';
           let videoUrl = '';
+          let locationData: any = null;
+          let isReaction = false;
           let messageType = 'text';
 
           if (msg.type === 'text') text = msg.text.body;
@@ -180,12 +182,37 @@ export async function POST(request: Request) {
             }
           }
           
-          if (text) {
+          if (msg.type === 'location') {
+            messageType = 'location';
+            text = '📍 Localização';
+            locationData = {
+              latitude: msg.location.latitude,
+              longitude: msg.location.longitude,
+              name: msg.location.name || '',
+              address: msg.location.address || ''
+            };
+          }
+
+          if (msg.type === 'reaction') {
+            isReaction = true;
+            try {
+              const originalMsgId = msg.reaction.message_id;
+              const emoji = msg.reaction.emoji;
+              const msgRef = doc(db, 'whatsapp_chats', phone, 'messages', originalMsgId);
+              // If emoji is empty string, it means reaction removed.
+              await updateDoc(msgRef, { reaction: emoji });
+              console.log(`[WHATSAPP WEBHOOK] Reação de ${phone}: ${emoji || 'removida'}`);
+            } catch (err) {
+              console.error('Erro ao processar reação', err);
+            }
+          }
+          
+          if (text && !isReaction) {
             const chatRef = doc(db, 'whatsapp_chats', phone);
             await setDoc(chatRef, {
               phone,
               name: contactName,
-              lastMessage: messageType === 'audio' ? '🎵 Áudio' : messageType === 'image' ? '📷 Imagem' : messageType === 'document' ? '📄 Arquivo' : messageType === 'video' ? '🎥 Vídeo' : text,
+              lastMessage: messageType === 'audio' ? '🎵 Áudio' : messageType === 'image' ? '📷 Imagem' : messageType === 'document' ? '📄 Arquivo' : messageType === 'video' ? '🎥 Vídeo' : messageType === 'location' ? '📍 Localização' : text,
               updatedAt: serverTimestamp(),
               unread: increment(1),
             }, { merge: true });
@@ -204,7 +231,8 @@ export async function POST(request: Request) {
               ...(audioUrl && { audioUrl }),
               ...(imageUrl && { imageUrl }),
               ...(documentUrl && { documentUrl, documentName }),
-              ...(videoUrl && { videoUrl })
+              ...(videoUrl && { videoUrl }),
+              ...(locationData && { location: locationData })
             });
             console.log(`[WHATSAPP WEBHOOK] Mensagem de ${phone}: ${text}`);
           }
@@ -216,6 +244,16 @@ export async function POST(request: Request) {
           console.log(`[WHATSAPP STATUS] Status: ${status.status}, Recipient: ${status.recipient_id}`);
           if (status.errors) {
             console.error(`[WHATSAPP ERROR] Meta Error details:`, JSON.stringify(status.errors, null, 2));
+          } else {
+            try {
+              const phone = status.recipient_id;
+              const msgId = status.id;
+              const msgRef = doc(db, 'whatsapp_chats', phone, 'messages', msgId);
+              // setDoc with merge in case the message hasn't been fully written yet (race condition)
+              await setDoc(msgRef, { status: status.status }, { merge: true });
+            } catch (err) {
+              console.error('Erro ao atualizar status da mensagem:', err);
+            }
           }
         }
       }

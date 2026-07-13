@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/app/components/Sidebar";
+import WaveformPlayer from "@/app/components/WaveformPlayer";
+import EmojiPicker from "emoji-picker-react";
 import { db, storage } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -29,6 +31,9 @@ interface Message {
   documentUrl?: string;
   documentName?: string;
   videoUrl?: string;
+  status?: 'sent' | 'delivered' | 'read' | 'failed';
+  reaction?: string;
+  location?: { latitude: number; longitude: number; name?: string; address?: string };
 }
 
 export default function ChatInbox() {
@@ -65,6 +70,9 @@ export default function ChatInbox() {
   // Video Upload State
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
+
+  // Emoji Picker State
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Escuta os chats (Contatos)
   useEffect(() => {
@@ -125,6 +133,9 @@ export default function ChatInbox() {
           documentUrl: data.documentUrl,
           documentName: data.documentName,
           videoUrl: data.videoUrl,
+          status: data.status,
+          reaction: data.reaction,
+          location: data.location,
           sender: data.sender,
           timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
           replyToMessageId: data.replyToMessageId,
@@ -552,7 +563,7 @@ export default function ChatInbox() {
                     )}
 
                     {msg.type === 'audio' && msg.audioUrl ? (
-                      <audio controls src={msg.audioUrl} className="w-60 h-10 mb-1" />
+                      <WaveformPlayer url={msg.audioUrl} />
                     ) : msg.type === 'image' && msg.imageUrl ? (
                       <div className="mb-1">
                         <img src={msg.imageUrl} alt="Imagem Recebida" className="max-w-[250px] max-h-[300px] rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(msg.imageUrl, '_blank')} />
@@ -573,15 +584,47 @@ export default function ChatInbox() {
                         <video controls src={msg.videoUrl} className="max-w-[250px] max-h-[300px] rounded-lg bg-black" />
                         {msg.text && msg.text !== '🎥 Vídeo Recebido' && <p className="text-sm whitespace-pre-wrap mt-2">{msg.text}</p>}
                       </div>
+                    ) : msg.type === 'location' && msg.location ? (
+                      <div className="mb-1 flex flex-col gap-2">
+                        <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => window.open(`https://maps.google.com/?q=${msg.location?.latitude},${msg.location?.longitude}`, '_blank')}>
+                          <div className="p-2 bg-red-100 text-red-600 rounded-full">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-slate-700 truncate max-w-[200px]">{msg.location.name || 'Localização Fixa'}</span>
+                            <span className="text-xs text-slate-500 truncate max-w-[200px]">{msg.location.address || 'Abrir no Google Maps'}</span>
+                          </div>
+                        </div>
+                      </div>
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                     )}
                     
                     <div className="flex justify-end items-center gap-1 mt-1">
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-400 opacity-80 select-none">
                         {msg.timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      {msg.sender === 'bot' && (
+                        <span className={`text-slate-400 flex items-center`}>
+                          {msg.status === 'read' ? (
+                            <svg className="w-[14px] h-[14px] text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12l5 5L20 7 M5 17l5 5L20 12"></path></svg>
+                          ) : msg.status === 'delivered' ? (
+                            <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12l5 5L20 7 M5 17l5 5L20 12"></path></svg>
+                          ) : msg.status === 'sent' ? (
+                            <svg className="w-[14px] h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12l5 5L20 7"></path></svg>
+                          ) : (
+                            <svg className="w-[14px] h-[14px] opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="10"></circle></svg>
+                          )}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Reaction Badge */}
+                    {msg.reaction && (
+                      <div className="absolute -bottom-3 -right-2 bg-white rounded-full border border-slate-200 px-1.5 py-0.5 text-sm shadow-sm select-none">
+                        {msg.reaction}
+                      </div>
+                    )}
                   </div>
 
                   {/* Reply Button for User Messages */}
@@ -701,6 +744,27 @@ export default function ChatInbox() {
                     <input type="file" id="imageInput" accept="image/*" className="hidden" onChange={handleImageSelect} />
                     <input type="file" id="documentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" className="hidden" onChange={handleDocumentSelect} />
                     <input type="file" id="videoInput" accept="video/mp4,video/3gpp,video/quicktime" className="hidden" onChange={handleVideoSelect} />
+                    
+                    <button 
+                      className="text-slate-400 hover:text-[#2C3E50] mr-2" 
+                      title="Emojis" 
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+
+                    {/* Popover de Emojis */}
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-20 left-4 z-50 shadow-2xl rounded-xl">
+                        <EmojiPicker 
+                          onEmojiClick={(emojiData) => {
+                            setInputText(prev => prev + emojiData.emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                        />
+                      </div>
+                    )}
+
                     <input 
                       type="text" 
                       value={inputText}
