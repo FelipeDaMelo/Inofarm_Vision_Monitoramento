@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import { Readable, PassThrough } from 'stream';
+import { Buffer } from 'buffer';
+
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 export async function POST(request: Request) {
   try {
@@ -33,13 +39,40 @@ export async function POST(request: Request) {
       };
     } else if (type === 'audio') {
       try {
-        // Baixa do Firebase Storage para o backend da Vercel agora
+        // Baixa do Firebase Storage para o backend da Vercel
         const fileRes = await fetch(audioUrl);
-        const fileBlob = await fileRes.blob();
+        const fileArrayBuffer = await fileRes.arrayBuffer();
+
+        console.log("Iniciando conversão de áudio WebM para Ogg/Opus...");
+
+        // Stream de entrada
+        const inputStream = new Readable();
+        inputStream.push(Buffer.from(fileArrayBuffer));
+        inputStream.push(null);
+
+        // Stream de saída
+        const outputStream = new PassThrough();
+        const chunks: Buffer[] = [];
+        outputStream.on('data', chunk => chunks.push(chunk));
+
+        // Processamento FFmpeg
+        await new Promise((resolve, reject) => {
+          ffmpeg(inputStream)
+            .toFormat('ogg')
+            .audioCodec('libopus')
+            .on('end', resolve)
+            .on('error', reject)
+            .pipe(outputStream);
+        });
+
+        const oggBuffer = Buffer.concat(chunks);
+        const fileBlob = new Blob([oggBuffer], { type: 'audio/ogg' });
+        const file = new File([fileBlob], 'audio.ogg', { type: 'audio/ogg' });
+        console.log("Conversão concluída. Tamanho final:", file.size);
 
         // Envia direto para a API de Mídia da Meta (Para evitar problemas com links do Firebase)
         const form = new FormData();
-        form.append('file', fileBlob, 'audio.ogg');
+        form.append('file', file);
         form.append('type', 'audio/ogg');
         form.append('messaging_product', 'whatsapp');
 
