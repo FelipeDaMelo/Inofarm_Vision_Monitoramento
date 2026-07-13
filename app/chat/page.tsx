@@ -47,6 +47,8 @@ export default function ChatInbox() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
 
   // Escuta os chats (Contatos)
   useEffect(() => {
@@ -158,7 +160,8 @@ export default function ChatInbox() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-        await sendAudioMessage(audioBlob);
+        setRecordedAudioBlob(audioBlob);
+        setRecordedAudioUrl(URL.createObjectURL(audioBlob));
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -423,6 +426,17 @@ export default function ChatInbox() {
                     </div>
                     <button onClick={cancelRecording} className="text-red-500 hover:text-red-700 text-sm font-medium mr-4">Cancelar</button>
                   </div>
+                ) : recordedAudioUrl ? (
+                  <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-2 shadow-sm border border-slate-200 justify-between">
+                    <audio controls src={recordedAudioUrl} className="h-10 w-full mr-4" />
+                    <button 
+                      onClick={() => { setRecordedAudioBlob(null); setRecordedAudioUrl(null); }} 
+                      className="text-red-500 hover:text-red-700 p-2"
+                      title="Apagar"
+                    >
+                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex-1 bg-white rounded-xl flex items-center px-4 py-3 shadow-sm border border-slate-200">
                     <input 
@@ -439,20 +453,34 @@ export default function ChatInbox() {
                 {isRecording ? (
                   <button 
                     onClick={stopRecording}
-                    className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105">
+                    className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105"
+                    title="Concluir Gravação">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                  </button>
+                ) : recordedAudioUrl ? (
+                  <button 
+                    onClick={() => {
+                      if (recordedAudioBlob) sendAudioMessage(recordedAudioBlob);
+                      setRecordedAudioBlob(null);
+                      setRecordedAudioUrl(null);
+                    }}
+                    className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105"
+                    title="Enviar Áudio">
+                    <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                   </button>
                 ) : (
                   inputText.trim() ? (
                     <button 
                       onClick={sendMessage}
-                      className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105">
+                      className="bg-[#A59D92] hover:bg-[#A59D92]/90 text-white p-3 rounded-full shadow-md transition-transform hover:scale-105"
+                      title="Enviar">
                       <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                     </button>
                   ) : (
                     <button 
                       onClick={startRecording}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-600 p-3 rounded-full shadow-md transition-colors">
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-600 p-3 rounded-full shadow-md transition-colors"
+                      title="Gravar Áudio">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                     </button>
                   )
