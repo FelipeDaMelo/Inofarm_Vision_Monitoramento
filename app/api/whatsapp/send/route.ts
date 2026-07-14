@@ -50,25 +50,25 @@ export async function POST(request: Request) {
         const path = require('path');
         
         const tempInput = path.join(os.tmpdir(), `input_${Date.now()}.webm`);
-        const tempOutput = path.join(os.tmpdir(), `output_${Date.now()}.aac`);
+        const tempOutput = path.join(os.tmpdir(), `output_${Date.now()}.ogg`);
         
         fs.writeFileSync(tempInput, Buffer.from(fileArrayBuffer));
 
         // Processamento FFmpeg via arquivos temporários
         await new Promise((resolve, reject) => {
           ffmpeg(tempInput)
-            .toFormat('adts')
-            .audioCodec('aac')
+            .toFormat('ogg')
+            .audioCodec('libopus')
             .audioChannels(1)
-            .audioFrequency(44100)
+            .audioFrequency(16000)
             .on('end', resolve)
             .on('error', reject)
             .save(tempOutput);
         });
 
-        const aacBuffer = fs.readFileSync(tempOutput);
-        const fileBlob = new Blob([aacBuffer], { type: 'audio/aac' });
-        const file = new File([fileBlob], 'audio.aac', { type: 'audio/aac' });
+        const oggBuffer = fs.readFileSync(tempOutput);
+        const fileBlob = new Blob([oggBuffer], { type: 'audio/ogg; codecs=opus' });
+        const file = new File([fileBlob], 'audio.ogg', { type: 'audio/ogg; codecs=opus' });
         console.log("Conversão concluída. Tamanho final:", file.size);
         
         // Limpa arquivos temporários
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
 
         // Envia direto para a API de Mídia da Meta (Para evitar problemas com links do Firebase)
         const form = new FormData();
-        form.append('file', fileBlob, 'audio.aac');
-        form.append('type', 'audio/aac');
+        form.append('file', fileBlob, 'audio.ogg');
+        form.append('type', 'audio/ogg; codecs=opus');
         form.append('messaging_product', 'whatsapp');
 
         const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
