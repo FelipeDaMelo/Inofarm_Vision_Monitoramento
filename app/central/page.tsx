@@ -70,7 +70,11 @@ export default function CentralDashboard() {
       const u2 = onValue(refConf, (snap) => {
         setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_conf`]: snap.val() }));
       });
-      unsubs.push(u1, u2);
+      const refPainel = ref(validRtdb, `heartbeat/${f.idUnico}/painel`);
+      const u3 = onValue(refPainel, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_painel`]: snap.val() }));
+      });
+      unsubs.push(u1, u2, u3);
     });
 
     return () => unsubs.forEach(u => u());
@@ -78,14 +82,15 @@ export default function CentralDashboard() {
 
   // Componente para reutilizar UI do Card
   const FarmCard = ({
-    title, data, href = "#", hbMat, hbConf, proprietario, contato, cidade, idUnico
+    title, data, href = "#", hbMat, hbConf, hbPainel, proprietario, contato, cidade, idUnico
   }: {
-    title: string, data: any, href?: string, hbMat?: any, hbConf?: any, proprietario?: string, contato?: string, cidade?: string, idUnico?: string
+    title: string, data: any, href?: string, hbMat?: any, hbConf?: any, hbPainel?: any, proprietario?: string, contato?: string, cidade?: string, idUnico?: string
   }) => {
     const nowSecs = Date.now() / 1000;
     const isMatOnline = hbMat && (nowSecs - hbMat.ts < 15);
     const isConfOnline = hbConf && (nowSecs - hbConf.ts < 15);
-    const isOnline = isMatOnline || isConfOnline;
+    const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 15);
+    const isOnline = isPainelOnline || isMatOnline || isConfOnline;
 
     const parto = data?.maternidade?.parto_detectado;
 
@@ -414,6 +419,7 @@ export default function CentralDashboard() {
                 const princ = f.contatos?.find((c: any) => c.isPrincipal) || f.contatos?.[0];
                 const hbMat = heartbeats[`${f.idUnico}_mat`];
                 const hbConf = heartbeats[`${f.idUnico}_conf`];
+                const hbPainel = heartbeats[`${f.idUnico}_painel`];
                 const data = telemetry[f.idUnico];
                 const urlFunnel = f.urlLocal ? f.urlLocal : "#";
 
@@ -426,6 +432,7 @@ export default function CentralDashboard() {
                     href={urlFunnel}
                     hbMat={hbMat}
                     hbConf={hbConf}
+                    hbPainel={hbPainel}
                     proprietario={f.proprietario}
                     contato={princ?.numero}
                     cidade={f.cidade}
