@@ -7,7 +7,7 @@
   --color-inofarm-branco: #ffffff;
 
   /* Aplicação do Tema Pure Identity */
-  --color-dash-bg: #A59D92; 
+  --color-dash-bg: #A59D92;
   --color-dash-card: #2C3E50;
   --color-dash-border: #3d5166;
 
@@ -33,14 +33,14 @@ body {
 
 @layer components {
   .tech-card {
-    @apply bg-inofarm-azul border border-white/10 rounded-2xl relative overflow-hidden shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)];
+    @apply bg-inofarm-azul border border-white/10 rounded-2xl relative overflow-hidden shadow-[0_20px_50px_-12px_rgba(0, 0, 0, 0.5)];
   }
-  
+
   body::before {
     content: "";
     @apply fixed inset-0 opacity-[0.04] pointer-events-none;
     background-image: linear-gradient(rgba(44, 62, 80, 0.2) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(44, 62, 80, 0.2) 1px, transparent 1px);
+      linear-gradient(90deg, rgba(44, 62, 80, 0.2) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 
@@ -87,8 +87,13 @@ body {
 }
 
 @keyframes scan {
-  0% { top: 0; }
-  100% { top: 100%; }
+  0% {
+    top: 0;
+  }
+
+  100% {
+    top: 100%;
+  }
 }
 
 .text-glow {

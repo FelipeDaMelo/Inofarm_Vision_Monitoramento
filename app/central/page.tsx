@@ -125,18 +125,18 @@ export default function CentralDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ target, action })
         });
-        
+
         console.log(`[ACTION] Status HTTP: ${res.status}`);
         const textData = await res.text();
         console.log(`[ACTION] Resposta Crua:`, textData);
-        
+
         let respData;
         try {
-            respData = JSON.parse(textData);
-        } catch(e) {
-            respData = { error: "Resposta do servidor não é um JSON válido" };
+          respData = JSON.parse(textData);
+        } catch (e) {
+          respData = { error: "Resposta do servidor não é um JSON válido" };
         }
-        
+
         if (res.ok) {
           const msg = respData.message || "Comando executado com sucesso!";
           console.log(`[ACTION] Sucesso:`, msg);
@@ -235,7 +235,7 @@ export default function CentralDashboard() {
               <div className={`mt-2 p-2 rounded text-center border ${parto ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
                 {parto ? (
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse flex items-center gap-2">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA DE PARTO
                     </span>
                     <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
@@ -263,8 +263,8 @@ export default function CentralDashboard() {
                 MATERNIDADE
               </span>
               <div className="flex gap-1">
-                <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>▶ Iniciar</button>
-                <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>⏹ Parar</button>
+                <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
               </div>
             </div>
 
@@ -275,8 +275,8 @@ export default function CentralDashboard() {
                 CONFINAMENTO
               </span>
               <div className="flex gap-1">
-                <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>▶ Iniciar</button>
-                <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>⏹ Parar</button>
+                <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
               </div>
             </div>
           </div>
@@ -303,9 +303,14 @@ export default function CentralDashboard() {
                 }
 
                 if (confirm(`Atenção: Isso vai enviar o arquivo '${file.name}' para a fazenda ${title}. Confirmar atualização OTA?`)) {
-                  // Pede o caminho de destino opcional
-                  const defaultPath = file.name.includes('confinamento') ? 'confinamento' : '';
-                  const targetPath = prompt(`Para qual subpasta o arquivo '${file.name}' deve ir?\n(Deixe em branco para salvar na raiz do projeto)`, defaultPath);
+                  // Detecta automaticamente a subpasta correta pelo nome do arquivo
+                  const pastasPorArquivo: Record<string, string> = {
+                    'agente_maternidade_hibrido.py': 'maternidade',
+                    'monitoramento_confinamento.py': 'confinamento',
+                    'painel_local.py': '',
+                  };
+                  const defaultPath = pastasPorArquivo[file.name] ?? (file.name.includes('confinamento') ? 'confinamento' : file.name.includes('maternidade') ? 'maternidade' : '');
+                  const targetPath = prompt(`Para qual subpasta o arquivo '${file.name}' deve ir?\n(Detectado automaticamente: '${defaultPath || 'raiz'}')`, defaultPath);
 
                   if (targetPath === null) {
                     // Usuário cancelou o prompt
@@ -332,14 +337,14 @@ export default function CentralDashboard() {
                     console.log(`[OTA] Status HTTP: ${res.status}`);
                     const textData = await res.text();
                     console.log(`[OTA] Resposta Crua:`, textData);
-                    
+
                     let data;
                     try {
-                        data = JSON.parse(textData);
-                    } catch(e) {
-                        data = { error: "Resposta do servidor não é um JSON válido" };
+                      data = JSON.parse(textData);
+                    } catch (e) {
+                      data = { error: "Resposta do servidor não é um JSON válido" };
                     }
-                    
+
                     if (res.ok) {
                       console.log(`[OTA] Sucesso:`, data.message);
                       alert(`✅ Sucesso na Fazenda ${title}: \n\n${data.message}`);
