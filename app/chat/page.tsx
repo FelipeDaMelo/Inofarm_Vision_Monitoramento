@@ -246,7 +246,8 @@ export default function ChatInbox() {
   };
 
   const sendAudioMessage = async (audioBlob: Blob) => {
-    if (!activeChatId) return;
+    if (!activeChatId || isSending) return;
+    setIsSending(true);
     
     try {
       // 1. Upload to Firebase Storage
