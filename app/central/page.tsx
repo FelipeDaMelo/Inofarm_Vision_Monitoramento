@@ -7,79 +7,6 @@ import { db, rtdb } from "@/lib/firebase";
 
 import Sidebar from "@/app/components/Sidebar";
 
-export default function CentralDashboard() {
-  const [currentTime, setCurrentTime] = useState<string>("");
-  const [fazendas, setFazendas] = useState<any[]>([]);
-  const [telemetry, setTelemetry] = useState<Record<string, any>>({});
-  const [heartbeats, setHeartbeats] = useState<Record<string, any>>({});
-
-  // Relógio Mestre
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Busca Fazendas Registradas
-  useEffect(() => {
-    if (!db) return;
-    const unsub = onSnapshot(collection(db, "fazendas_registradas"), (snap) => {
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setFazendas(lista);
-    });
-    return () => unsub();
-  }, []);
-
-  // Firestore Sincronização Dinâmica (Telemetria)
-  useEffect(() => {
-    if (!db) return;
-    const unsubs: any[] = [];
-
-    fazendas.forEach(f => {
-      if (!f.idUnico) return;
-
-      const docRef = doc(db!, "fazendas_registradas", f.idUnico);
-      const u = onSnapshot(docRef, (snap) => {
-        if (snap.exists()) {
-          setTelemetry(prev => ({ ...prev, [f.idUnico]: snap.data() }));
-        }
-      });
-      unsubs.push(u);
-    });
-
-    return () => unsubs.forEach(u => u());
-  }, [fazendas]);
-
-  // Realtime Database Heartbeat Sincronização Dinâmica
-  useEffect(() => {
-    const validRtdb = rtdb;
-    if (!validRtdb) return;
-    const unsubs: any[] = [];
-
-    fazendas.forEach(f => {
-      if (!f.idUnico) return;
-      const refMat = ref(validRtdb, `heartbeat/${f.idUnico}/maternidade`);
-      const u1 = onValue(refMat, (snap) => {
-        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_mat`]: snap.val() }));
-      });
-      const refConf = ref(validRtdb, `heartbeat/${f.idUnico}/confinamento`);
-      const u2 = onValue(refConf, (snap) => {
-        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_conf`]: snap.val() }));
-      });
-      const refPainel = ref(validRtdb, `heartbeat/${f.idUnico}/painel`);
-      const u3 = onValue(refPainel, (snap) => {
-        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_painel`]: snap.val() }));
-      });
-      unsubs.push(u1, u2, u3);
-    });
-
-    return () => unsubs.forEach(u => u());
-  }, [fazendas]);
-
   // Componente para reutilizar UI do Card
   const FarmCard = ({
     title, data, href = "#", hbMat, hbConf, hbPainel, proprietario, contato, cidade, idUnico
@@ -335,7 +262,8 @@ export default function CentralDashboard() {
                     formData.append("target_path", targetPath);
 
                     // Ajuste de URL garantindo que não duplica a barra
-                    const baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+                    let baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+      if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
 
                     console.log(`[OTA] Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na URL: ${baseUrl}/api/update`);
                     alert(`Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na fazenda...`);
@@ -383,6 +311,80 @@ export default function CentralDashboard() {
       </div>
     );
   };
+
+
+export default function CentralDashboard() {
+  const [currentTime, setCurrentTime] = useState<string>("");
+  const [fazendas, setFazendas] = useState<any[]>([]);
+  const [telemetry, setTelemetry] = useState<Record<string, any>>({});
+  const [heartbeats, setHeartbeats] = useState<Record<string, any>>({});
+
+  // Relógio Mestre
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Busca Fazendas Registradas
+  useEffect(() => {
+    if (!db) return;
+    const unsub = onSnapshot(collection(db, "fazendas_registradas"), (snap) => {
+      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setFazendas(lista);
+    });
+    return () => unsub();
+  }, []);
+
+  // Firestore Sincronização Dinâmica (Telemetria)
+  useEffect(() => {
+    if (!db) return;
+    const unsubs: any[] = [];
+
+    fazendas.forEach(f => {
+      if (!f.idUnico) return;
+
+      const docRef = doc(db!, "fazendas_registradas", f.idUnico);
+      const u = onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+          setTelemetry(prev => ({ ...prev, [f.idUnico]: snap.data() }));
+        }
+      });
+      unsubs.push(u);
+    });
+
+    return () => unsubs.forEach(u => u());
+  }, [fazendas]);
+
+  // Realtime Database Heartbeat Sincronização Dinâmica
+  useEffect(() => {
+    const validRtdb = rtdb;
+    if (!validRtdb) return;
+    const unsubs: any[] = [];
+
+    fazendas.forEach(f => {
+      if (!f.idUnico) return;
+      const refMat = ref(validRtdb, `heartbeat/${f.idUnico}/maternidade`);
+      const u1 = onValue(refMat, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_mat`]: snap.val() }));
+      });
+      const refConf = ref(validRtdb, `heartbeat/${f.idUnico}/confinamento`);
+      const u2 = onValue(refConf, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_conf`]: snap.val() }));
+      });
+      const refPainel = ref(validRtdb, `heartbeat/${f.idUnico}/painel`);
+      const u3 = onValue(refPainel, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_painel`]: snap.val() }));
+      });
+      unsubs.push(u1, u2, u3);
+    });
+
+    return () => unsubs.forEach(u => u());
+  }, [fazendas]);
 
   return (
     <div className="flex h-screen bg-[#A59D92] font-sans overflow-hidden">
