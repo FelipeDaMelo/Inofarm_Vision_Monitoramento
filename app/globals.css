@@ -33,7 +33,8 @@ body {
 
 @layer components {
   .tech-card {
-    @apply bg-inofarm-azul border border-white/10 rounded-2xl relative overflow-hidden shadow-[0_20px_50px_-12px_rgba(0, 0, 0, 0.5)];
+    @apply bg-inofarm-azul border border-white/10 rounded-2xl relative overflow-hidden;
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
   }
 
   body::before {
@@ -45,7 +46,13 @@ body {
   }
 
   .led-glow {
-    filter: drop-shadow(0 0 5px currentColor);
+    filter: drop-shadow(0 0 4px currentColor);
+    animation: led-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes led-pulse {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 5px currentColor); }
+    50%       { opacity: 0.5; filter: drop-shadow(0 0 2px currentColor); }
   }
 
   /* Removido o tracking-widest exagerado para letras mais fortes */
