@@ -61,6 +61,11 @@ export async function POST(request: Request) {
             .audioCodec('libopus')
             .audioChannels(1)
             .audioFrequency(16000)
+            .audioBitrate('16k')
+            .outputOptions([
+              '-avoid_negative_ts make_zero', // Crucial para iOS
+              '-map_metadata -1' // Remove metadados que quebram o player do iOS
+            ])
             .on('end', resolve)
             .on('error', reject)
             .save(tempOutput);
