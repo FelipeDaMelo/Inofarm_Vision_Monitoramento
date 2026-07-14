@@ -100,8 +100,21 @@ export default function ChatInbox() {
         });
       });
       setChats(chatList);
+      
       if (!activeChatId && chatList.length > 0) {
-        setActiveChatId(chatList[0].id);
+        const urlParams = new URLSearchParams(window.location.search);
+        const phoneParam = urlParams.get('phone');
+        
+        if (phoneParam) {
+          const target = chatList.find(c => (c.phone && c.phone.includes(phoneParam)) || c.id.includes(phoneParam));
+          if (target) {
+            setActiveChatId(target.id);
+          } else {
+            setActiveChatId(chatList[0].id);
+          }
+        } else {
+          setActiveChatId(chatList[0].id);
+        }
       }
     });
 

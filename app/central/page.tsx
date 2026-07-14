@@ -176,13 +176,13 @@ export default function CentralDashboard() {
         <div className="flex flex-col gap-1 px-1 mt-[-4px] text-[10px]">
           {proprietario && (
             <div className="flex items-center gap-2">
-              <span className="font-bold text-[#2C3E50]/60 w-16">PROPRIETÁRIO:</span>
+              <span className="font-bold text-[#2C3E50]/60 min-w-[85px]">PROPRIETÁRIO:</span>
               <span className="text-[#2C3E50] font-medium">{proprietario}</span>
             </div>
           )}
           {contato && (
             <div className="flex items-center gap-2">
-              <span className="font-bold text-[#2C3E50]/60 w-16">CONTATO (PR):</span>
+              <span className="font-bold text-[#2C3E50]/60 min-w-[85px]">CONTATO (PR):</span>
               <a href={`/chat?phone=${contato.replace(/\D/g, '')}`} className="text-emerald-600 font-bold hover:underline cursor-pointer flex items-center gap-1">
                 {contato}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
@@ -191,7 +191,7 @@ export default function CentralDashboard() {
           )}
           {cidade && (
             <div className="flex items-center gap-2">
-              <span className="font-bold text-[#2C3E50]/60 w-16">CIDADE:</span>
+              <span className="font-bold text-[#2C3E50]/60 min-w-[85px]">CIDADE:</span>
               <span className="text-[#2C3E50] font-medium">{cidade}</span>
             </div>
           )}
@@ -253,28 +253,30 @@ export default function CentralDashboard() {
         {/* Footer do Card */}
         <div className="mt-auto pt-2 flex flex-col gap-2">
           {/* Controle Remoto de IA */}
-          <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-1 border border-[#2C3E50]/10">
+          <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
             <span className="text-[8px] font-black uppercase text-[#2C3E50] mb-1">Controle de IA (Edge)</span>
 
+            {/* Maternidade */}
             <div className="flex items-center justify-between gap-2">
               <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
                 MATERNIDADE
               </span>
               <div className="flex gap-1">
-                <button onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>▶ Iniciar</button>
-                <button onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>⏹ Parar</button>
+                <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>▶ Iniciar</button>
+                <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>⏹ Parar</button>
               </div>
             </div>
 
+            {/* Confinamento */}
             <div className="flex items-center justify-between gap-2 mt-1">
               <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
                 CONFINAMENTO
               </span>
               <div className="flex gap-1">
-                <button onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>▶ Iniciar</button>
-                <button onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>⏹ Parar</button>
+                <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>▶ Iniciar</button>
+                <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase transition-colors`}>⏹ Parar</button>
               </div>
             </div>
           </div>
