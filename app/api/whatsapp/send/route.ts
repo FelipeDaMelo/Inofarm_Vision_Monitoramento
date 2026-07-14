@@ -39,38 +39,43 @@ export async function POST(request: Request) {
       };
     } else if (type === 'audio') {
       try {
-        // Baixa do Firebase Storage para o backend da Vercel
+        // Baixa do Firebase Storage
         const fileRes = await fetch(audioUrl);
         const fileArrayBuffer = await fileRes.arrayBuffer();
 
         console.log("Iniciando conversão de áudio WebM para Ogg/Opus...");
+        
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        
+        const tempInput = path.join(os.tmpdir(), `input_${Date.now()}.webm`);
+        const tempOutput = path.join(os.tmpdir(), `output_${Date.now()}.ogg`);
+        
+        fs.writeFileSync(tempInput, Buffer.from(fileArrayBuffer));
 
-        // Stream de entrada
-        const inputStream = new Readable();
-        inputStream.push(Buffer.from(fileArrayBuffer));
-        inputStream.push(null);
-
-        // Stream de saída
-        const outputStream = new PassThrough();
-        const chunks: Buffer[] = [];
-        outputStream.on('data', chunk => chunks.push(chunk));
-
-        // Processamento FFmpeg
+        // Processamento FFmpeg via arquivos temporários
         await new Promise((resolve, reject) => {
-          ffmpeg(inputStream)
+          ffmpeg(tempInput)
             .toFormat('ogg')
             .audioCodec('libopus')
             .audioChannels(1)
-            .audioFrequency(48000)
+            .audioFrequency(16000)
             .on('end', resolve)
             .on('error', reject)
-            .pipe(outputStream);
+            .save(tempOutput);
         });
 
-        const oggBuffer = Buffer.concat(chunks);
+        const oggBuffer = fs.readFileSync(tempOutput);
         const fileBlob = new Blob([oggBuffer], { type: 'audio/ogg' });
         const file = new File([fileBlob], 'audio.ogg', { type: 'audio/ogg' });
         console.log("Conversão concluída. Tamanho final:", file.size);
+        
+        // Limpa arquivos temporários
+        try {
+          fs.unlinkSync(tempInput);
+          fs.unlinkSync(tempOutput);
+        } catch(e) {}
 
         // Envia direto para a API de Mídia da Meta (Para evitar problemas com links do Firebase)
         const form = new FormData();
