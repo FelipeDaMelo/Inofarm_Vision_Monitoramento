@@ -98,7 +98,10 @@ export default function CentralDashboard() {
 
     useEffect(() => {
       if (!href || href === "#") return;
-      const baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+      let baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+      if (!baseUrl.startsWith('http')) {
+        baseUrl = 'https://' + baseUrl;
+      }
 
       const fetchEdgeStatus = async () => {
         try {
@@ -123,7 +126,10 @@ export default function CentralDashboard() {
         return;
       }
       try {
-        const baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+        let baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
+        if (!baseUrl.startsWith('http')) {
+          baseUrl = 'https://' + baseUrl;
+        }
         console.log(`[ACTION] Enviando ${action} para ${target} na URL: ${baseUrl}/api/toggle-ai`);
         const res = await fetch(`${baseUrl}/api/toggle-ai`, {
           method: 'POST',
@@ -206,7 +212,7 @@ export default function CentralDashboard() {
         <div className="flex-1 flex flex-col gap-4">
           {/* Confinamento */}
           <div className="bg-white p-3 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-2 shadow-sm">
-            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1">🐮 Confinamento</h3>
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
             {data?.confinamento ? (
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <div className="flex flex-col">
@@ -235,7 +241,7 @@ export default function CentralDashboard() {
 
           {/* Maternidade */}
           <div className="bg-white p-3 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-2 shadow-sm">
-            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1">🍼 Maternidade</h3>
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
             {data?.maternidade ? (
               <div className={`mt-2 p-2 rounded text-center border ${parto ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
                 {parto ? (
@@ -264,24 +270,24 @@ export default function CentralDashboard() {
             {/* Maternidade */}
             <div className="flex items-center justify-between gap-2">
               <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
                 MATERNIDADE
               </span>
               <div className="flex gap-1">
-                <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-                <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
               </div>
             </div>
 
             {/* Confinamento */}
             <div className="flex items-center justify-between gap-2 mt-1">
               <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
                 CONFINAMENTO
               </span>
               <div className="flex gap-1">
-                <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-                <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
               </div>
             </div>
           </div>
