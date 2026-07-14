@@ -140,29 +140,38 @@ import Sidebar from "@/app/components/Sidebar";
           {/* Confinamento */}
           <div className="bg-white p-3 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-2 shadow-sm">
             <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
-            {data?.confinamento ? (
+            {data?.compost_barn_cama || data?.status_rebanho || data?.status_manejo ? (
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <div className="flex flex-col">
-                  <span className="text-[8px] text-[#2C3E50]/60 uppercase font-bold">Total Vacas</span>
-                  <span className="text-lg font-black text-[#2C3E50] mono-data">{data.confinamento.total_vacas}</span>
+                  <span className="text-[8px] text-[#2C3E50]/60 uppercase font-bold">Status do Rebanho</span>
+                  <span className={`text-sm font-black mono-data mt-0.5 ${data?.status_rebanho?.status_maioria?.includes('PÉ') ? 'text-emerald-600' : data?.status_rebanho?.status_maioria?.includes('DEITADA') ? 'text-amber-500' : 'text-[#2C3E50]'}`}>
+                    {data?.status_rebanho?.status_maioria || "CALCULANDO..."}
+                  </span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-[8px] text-[#2C3E50]/60 uppercase font-bold">Hora Leitura</span>
-                  <span className="text-[10px] text-[#2C3E50]/80 font-mono mt-1 font-bold">{data.confinamento.hora_da_captura}</span>
-                </div>
-                <div className="flex justify-between col-span-2 bg-[#2C3E50]/5 p-2 rounded mt-1">
-                  <div className="flex flex-col items-center">
-                    <span className="text-[7px] text-[#2C3E50]/50 uppercase font-bold">Em Pé</span>
-                    <span className="text-emerald-600 font-black mono-data text-xs">{data.confinamento.vacas_em_pe}</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <span className="text-[7px] text-[#2C3E50]/50 uppercase font-bold">Deitadas</span>
-                    <span className="text-amber-500 font-black mono-data text-xs">{data.confinamento.vacas_deitadas}</span>
-                  </div>
+                  {data?.status_manejo === 'EM ANDAMENTO' ? (
+                    <div className="flex flex-col items-center mt-1">
+                      <span className="text-[10px] text-red-500 font-black uppercase tracking-wider animate-pulse border border-red-500/30 bg-red-50 px-2 py-0.5 rounded shadow-sm">
+                        🚨 TRATOR NA CAMA
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-[8px] text-[#2C3E50]/60 uppercase font-bold">Último Manejo</span>
+                      <span className="text-[10px] text-[#2C3E50]/80 font-mono mt-1 font-bold">
+                        {data?.compost_barn_cama?.data_finalizacao 
+                          ? new Date(data.compost_barn_cama.data_finalizacao).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) 
+                          : "--:--"}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             ) : (
-              <span className="text-[10px] text-[#2C3E50]/40 italic font-medium">Aguardando telemetria...</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-emerald-500 text-sm">✓</span>
+                <span className="text-[10px] text-emerald-600/80 font-bold uppercase tracking-tight">Tudo Tranquilo</span>
+              </div>
             )}
           </div>
 
@@ -170,20 +179,26 @@ import Sidebar from "@/app/components/Sidebar";
           <div className="bg-white p-3 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-2 shadow-sm">
             <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
             {data?.maternidade ? (
-              <div className={`mt-2 p-2 rounded text-center border ${parto ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
-                {parto ? (
+              <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
+                {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') ? (
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA DE PARTO
                     </span>
                     <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
+                    {data.maternidade.evento && (
+                      <span className="text-[8px] text-red-600 font-bold mt-1">{(data.maternidade.evento).replace(/_/g, ' ')}</span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-[9px] font-bold text-emerald-600 uppercase">Tudo Tranquilo</span>
                 )}
               </div>
             ) : (
-              <span className="text-[10px] text-[#2C3E50]/40 italic font-medium">Aguardando telemetria...</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-emerald-500 text-sm">✓</span>
+                <span className="text-[10px] text-emerald-600/80 font-bold uppercase tracking-tight">Tudo Tranquilo</span>
+              </div>
             )}
           </div>
         </div>
