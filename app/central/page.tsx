@@ -16,7 +16,7 @@ const FarmCard = ({
   const nowSecs = Date.now() / 1000;
   const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
   const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
-  const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 90);
+  const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720);
   const isOnline = isPainelOnline || isMatOnline || isConfOnline;
 
   const parto = data?.maternidade?.parto_detectado;
