@@ -7,7 +7,7 @@ import { db, rtdb } from "@/lib/firebase";
 
 import Sidebar from "@/app/components/Sidebar";
 
-// Componente para reutilizar UI do Cards
+// Componente para reutilizar UI do Card
 const FarmCard = ({
   title, data, href = "#", hbMat, hbConf, hbPainel, proprietario, contato, cidade, idUnico
 }: {
