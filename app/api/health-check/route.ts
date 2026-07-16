@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server';
-import { db, rtdb } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
-import { ref, set } from 'firebase/database';
+import { adminDb, adminRtdb } from '@/lib/firebase-admin';
 
 /**
  * GET /api/health-check
  * 
  * Chamado externamente pelo cron-job.org a cada 10 minutos.
- * Fluxo:
- *   1. Busca todas as fazendas no Firestore (fazendas_registradas)
- *   2. Para cada uma, pinga GET {urlLocal}/api/health (Tailscale Funnel)
- *   3. Se responder → grava "online" no Firebase RTDB
- *   4. Se não responder → grava "offline"
- * 
- * Modelo PULL: a fazenda NÃO faz nenhum upload. 
- * A nuvem é quem pergunta. Zero impacto na rede local.
+ * Utiliza Firebase Admin para não sofrer bloqueios de PERMISSION_DENIED.
  */
 export async function GET() {
-  if (!db || !rtdb) {
+  if (!adminDb || !adminRtdb) {
     return NextResponse.json(
-      { error: 'Firebase não configurado' },
+      { error: 'Firebase Admin não configurado. Adicione FIREBASE_SERVICE_ACCOUNT na Vercel.' },
       { status: 500 }
     );
   }
@@ -27,11 +18,14 @@ export async function GET() {
   const resultados: Record<string, any> = {};
 
   try {
+    const firestore = adminDb!;
+    const realtimeDb = adminRtdb!;
+
     // 1. Busca todas as fazendas registradas
-    const snapshot = await getDocs(collection(db, 'fazendas_registradas'));
+    const snapshot = await firestore.collection('fazendas_registradas').get();
 
     // 2. Pinga cada fazenda em paralelo (com timeout curto)
-    const promises = snapshot.docs.map(async (doc) => {
+    const promises = snapshot.docs.map(async (doc: any) => {
       const farmId = doc.id;
       const data = doc.data();
       const urlLocal = data.urlLocal;
@@ -56,8 +50,8 @@ export async function GET() {
           const healthData = await response.json();
 
           // 3. Grava no Firebase RTDB — substitui o heartbeat antigo
-          const heartbeatRef = ref(rtdb, `heartbeat/${farmId}/painel`);
-          await set(heartbeatRef, {
+          const heartbeatRef = realtimeDb.ref(`heartbeat/${farmId}/painel`);
+          await heartbeatRef.set({
             status: 'online',
             ts: Date.now() / 1000,
             ultima_atualizacao: new Date().toISOString(),
@@ -72,8 +66,8 @@ export async function GET() {
           resultados[farmId] = { status: 'online', ...healthData };
         } else {
           // Respondeu mas com erro (ex: 500)
-          const heartbeatRef = ref(rtdb, `heartbeat/${farmId}/painel`);
-          await set(heartbeatRef, {
+          const heartbeatRef = realtimeDb.ref(`heartbeat/${farmId}/painel`);
+          await heartbeatRef.set({
             status: 'degraded',
             ts: Date.now() / 1000,
             ultima_atualizacao: new Date().toISOString(),
@@ -84,8 +78,8 @@ export async function GET() {
         }
       } catch (err: any) {
         // Timeout ou erro de rede → fazenda offline
-        const heartbeatRef = ref(rtdb, `heartbeat/${farmId}/painel`);
-        await set(heartbeatRef, {
+        const heartbeatRef = realtimeDb.ref(`heartbeat/${farmId}/painel`);
+        await heartbeatRef.set({
           status: 'offline',
           ts: Date.now() / 1000,
           ultima_atualizacao: new Date().toISOString(),
@@ -114,3 +108,4 @@ export async function GET() {
     );
   }
 }
+
