@@ -15,6 +15,7 @@ export default function FazendasDashboard() {
   const [proprietario, setProprietario] = useState("");
   const [cidade, setCidade] = useState("");
   const [urlLocal, setUrlLocal] = useState("");
+  const [anydeskId, setAnydeskId] = useState("");
 
   const [contatos, setContatos] = useState<{ nome: string, numero: string, isPrincipal: boolean }[]>([
     { nome: "", numero: "", isPrincipal: true }
@@ -61,6 +62,7 @@ export default function FazendasDashboard() {
       proprietario,
       cidade,
       urlLocal,
+      anydeskId,
       contatos,
       dataCadastro: new Date().toISOString()
     };
@@ -69,7 +71,7 @@ export default function FazendasDashboard() {
       await setDoc(doc(db, "fazendas_registradas", idUnico), dados);
       alert("Fazenda registrada com sucesso!");
       // Limpa form
-      setNome(""); setIdUnico(""); setProprietario(""); setCidade(""); setUrlLocal("");
+      setNome(""); setIdUnico(""); setProprietario(""); setCidade(""); setUrlLocal(""); setAnydeskId("");
       setContatos([{ nome: "", numero: "", isPrincipal: true }]);
     } catch (err) {
       console.error(err);
@@ -118,9 +120,15 @@ export default function FazendasDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold uppercase text-[#2C3E50]/70">URL de Acesso Local (Funnel)</label>
-                <input required value={urlLocal} onChange={e => setUrlLocal(e.target.value)} className="p-2 border rounded font-mono text-sm outline-none focus:border-[#2C3E50]" placeholder="Ex: https://fazenda.tailnet.ts.net" />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold uppercase text-[#2C3E50]/70">URL de Acesso Local (Funnel)</label>
+                  <input required value={urlLocal} onChange={e => setUrlLocal(e.target.value)} className="p-2 border rounded font-mono text-sm outline-none focus:border-[#2C3E50]" placeholder="Ex: https://fazenda.tailnet.ts.net" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold uppercase text-[#2C3E50]/70">ID AnyDesk (Opcional)</label>
+                  <input value={anydeskId} onChange={e => setAnydeskId(e.target.value)} className="p-2 border rounded font-mono text-sm outline-none focus:border-[#2C3E50]" placeholder="Ex: 123456789" />
+                </div>
               </div>
 
               {/* Seção Múltiplos Contatos */}
@@ -178,6 +186,13 @@ export default function FazendasDashboard() {
                         <div className="flex flex-col">
                           <span className="text-[8px] font-bold uppercase text-[#2C3E50]/50">URL Local</span>
                           <span className="text-[10px] text-blue-600 truncate">{f.urlLocal}</span>
+                        </div>
+                      )}
+                      
+                      {f.anydeskId && (
+                        <div className="flex flex-col mt-1">
+                          <span className="text-[8px] font-bold uppercase text-[#2C3E50]/50">AnyDesk</span>
+                          <span className="text-[10px] text-red-600 font-mono">{f.anydeskId}</span>
                         </div>
                       )}
 

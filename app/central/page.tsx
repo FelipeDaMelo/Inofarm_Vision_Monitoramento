@@ -9,11 +9,13 @@ import Sidebar from "@/app/components/Sidebar";
 
 // Componente para reutilizar UI do Cards
 const FarmCard = ({
-  title, data, href = "#", hbMat, hbConf, hbPainel, proprietario, contato, cidade, idUnico
+  title, data, href = "#", hbMat, hbConf, hbPainel, proprietario, contato, cidade, idUnico, anydeskId, anydeskPass, modulos = []
 }: {
-  title: string, data: any, href?: string, hbMat?: any, hbConf?: any, hbPainel?: any, proprietario?: string, contato?: string, cidade?: string, idUnico?: string
+  title: string, data: any, href?: string, hbMat?: any, hbConf?: any, hbPainel?: any, proprietario?: string, contato?: string, cidade?: string, idUnico?: string, anydeskId?: string, anydeskPass?: string, modulos?: string[]
 }) => {
   const nowSecs = Date.now() / 1000;
+  const showConfinamento = modulos.includes('CONFINAMENTO') || !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf;
+  const showMaternidade = modulos.includes('MATERNIDADE') || !!data?.maternidade || !!hbMat;
   const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
   const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
   const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
@@ -86,16 +88,34 @@ const FarmCard = ({
         console.error(`[ACTION] Erro retornado:`, respData.error);
         alert(`❌ Erro: ${respData.error}`);
       }
-    } catch (error) {
-      console.error(`[ACTION] Falha de conexão:`, error);
-      alert(`🚨 Falha de Conexão com o túnel da fazenda: ${error}`);
+    } catch (e) {
+      console.error(`[ACTION] Falha na requisição:`, e);
+      alert("Falha na comunicação com o Painel Local. Verifique se o túnel Tailscale está online.");
     }
   };
 
+  const copyPass = () => {
+    if (anydeskPass) {
+      navigator.clipboard.writeText(anydeskPass).catch(() => { });
+    }
+  };
+
+  const handleAnydeskOpen = () => {
+    if (!anydeskId) return;
+    copyPass();
+    const cleanId = anydeskId.replace(/\s+/g, '');
+    window.location.href = `anydesk://${cleanId}`;
+  };
+
+  const handleAnydeskDownload = () => {
+    alert("Você será redirecionado para a página de download do AnyDesk.\n\nApós terminar a instalação, volte aqui e clique no botão principal 'ANYDESK' para conectar à máquina!");
+    window.open('https://anydesk.com/download', '_blank');
+  };
+
   return (
-    <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-4 gap-4 h-full">
+    <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-3 gap-2 h-full">
       {/* Header do Card */}
-      <div className="flex justify-between items-center border-b border-[#2C3E50]/10 pb-3">
+      <div className="flex justify-between items-center border-b border-[#2C3E50]/10 pb-2">
         <div className="flex flex-col">
           <h2 className="text-sm font-black text-[#2C3E50] uppercase tracking-widest flex items-center gap-2">
             <span className="text-[#A59D92] text-lg">🏛️</span> {title}
@@ -136,9 +156,10 @@ const FarmCard = ({
       </div>
 
       {/* Corpo do Card: Dados */}
-      <div className="flex-1 flex flex-col gap-4">
+      <div className="flex-1 flex flex-col gap-2">
         {/* Confinamento */}
-        <div className="bg-white p-3 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-2 shadow-sm">
+        {showConfinamento && (
+        <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
           <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
           {data?.compost_barn_cama || data?.status_rebanho || data?.status_manejo ? (
             <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
@@ -183,9 +204,11 @@ const FarmCard = ({
             </div>
           )}
         </div>
+        )}
 
         {/* Maternidade */}
-        <div className="bg-white p-3 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-2 shadow-sm">
+        {showMaternidade && (
+        <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
           <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
           {data?.maternidade ? (
             <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
@@ -210,15 +233,18 @@ const FarmCard = ({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Footer do Card */}
-      <div className="mt-auto pt-2 flex flex-col gap-2">
+      <div className="mt-auto pt-1.5 flex flex-col gap-1.5">
         {/* Controle Remoto de IA */}
+        {(showMaternidade || showConfinamento) && (
         <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
           <span className="text-[8px] font-black uppercase text-[#2C3E50] mb-1">Controle de IA (Edge)</span>
 
           {/* Maternidade */}
+          {showMaternidade && (
           <div className="flex items-center justify-between gap-2">
             <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
@@ -229,8 +255,10 @@ const FarmCard = ({
               <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
             </div>
           </div>
+          )}
 
           {/* Confinamento */}
+          {showConfinamento && (
           <div className="flex items-center justify-between gap-2 mt-1">
             <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
@@ -241,13 +269,42 @@ const FarmCard = ({
               <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
             </div>
           </div>
+          )}
         </div>
+        )}
 
-        <a href={href} target="_blank" className="w-full flex">
-          <button className="w-full py-2 bg-[#2C3E50] text-[#A59D92] font-black text-[9px] uppercase tracking-widest rounded transition-all hover:bg-[#1a252f] cursor-pointer shadow-md">
-            ACESSAR PAINEL LOCAL
-          </button>
-        </a>
+        <div className="flex gap-2 w-full">
+          <a href={href} target="_blank" className="flex-1 flex">
+            <button className="w-full py-2 bg-[#2C3E50] text-[#A59D92] font-black text-[9px] uppercase tracking-widest rounded transition-all hover:bg-[#1a252f] cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <rect width="20" height="14" x="2" y="3" rx="2" />
+                <line x1="8" x2="16" y1="21" y2="21" />
+                <line x1="12" x2="12" y1="17" y2="21" />
+              </svg>
+              ACESSAR PAINEL
+            </button>
+          </a>
+
+          {anydeskId && (
+            <div className="flex-1 flex rounded shadow-md overflow-hidden">
+              <button
+                onClick={handleAnydeskOpen}
+                className="flex-1 py-2 bg-red-600 text-white font-black text-[9px] uppercase tracking-widest transition-all hover:bg-red-700 cursor-pointer flex items-center justify-center gap-1.5"
+                title="Abrir no app do AnyDesk (copia a senha automaticamente)"
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8.322 3.677L0 12l8.322 8.323L16.645 12zM15.353 3.677v.001l-.815.815 7.507 7.507-7.507 7.507.815.815 8.322-8.322z" /></svg>
+                ANYDESK
+              </button>
+              <button
+                onClick={handleAnydeskDownload}
+                className="px-2 bg-red-700 text-white transition-all hover:bg-red-800 border-l border-red-500 flex items-center justify-center cursor-pointer"
+                title="Não tem o AnyDesk? Clique para baixar"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="relative w-full">
           <input
@@ -342,6 +399,11 @@ export default function CentralDashboard() {
   const [fazendas, setFazendas] = useState<any[]>([]);
   const [telemetry, setTelemetry] = useState<Record<string, any>>({});
   const [heartbeats, setHeartbeats] = useState<Record<string, any>>({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterConexao, setFilterConexao] = useState("ALL");
+  const [filterIA, setFilterIA] = useState("ALL");
+  const [filterAlertas, setFilterAlertas] = useState("ALL");
+  const [filterModulos, setFilterModulos] = useState<string[]>([]);
 
   // Relógio Mestre
   useEffect(() => {
@@ -410,44 +472,175 @@ export default function CentralDashboard() {
     return () => unsubs.forEach(u => u());
   }, [fazendas]);
 
+  // Aplicando todos os filtros
+  const fazendasFiltradas = fazendas.filter(f => {
+    // 1. Busca por Texto
+    const s = searchTerm.toLowerCase();
+    const matchText = (f.nome || "").toLowerCase().includes(s) || 
+                      (f.cidade || "").toLowerCase().includes(s) || 
+                      (f.proprietario || "").toLowerCase().includes(s);
+    if (!matchText) return false;
+
+    // Dados de Status para filtros avançados
+    const data = telemetry[f.idUnico];
+    const hbMat = heartbeats[`${f.idUnico}_mat`];
+    const hbConf = heartbeats[`${f.idUnico}_conf`];
+    const hbPainel = heartbeats[`${f.idUnico}_painel`];
+
+    const nowSecs = Date.now() / 1000;
+    const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
+    const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
+    const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
+    const isOnline = isPainelOnline || isMatOnline || isConfOnline;
+    const isIaRunning = isMatOnline || isConfOnline;
+
+    const hasAlertaMaternidade = data?.maternidade?.evento?.includes('NASCIMENTO') || data?.maternidade?.evento?.includes('PARTO');
+    const hasAlertaConfinamento = data?.status_manejo === 'EM ANDAMENTO';
+    const hasAlerta = hasAlertaMaternidade || hasAlertaConfinamento;
+
+    const fModulos = f.modulos || [];
+    const hasMaternidade = !!data?.maternidade || !!hbMat || fModulos.includes("MATERNIDADE");
+    const hasConfinamento = !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf || fModulos.includes("CONFINAMENTO");
+    const hasOrdenha = fModulos.includes("ORDENHA");
+    const hasSalaEspera = fModulos.includes("SALA_ESPERA");
+    const hasQuimicos = fModulos.includes("QUIMICOS");
+    const hasVitu = fModulos.includes("VITU");
+
+    // 2. Filtro Conexão
+    if (filterConexao === 'ONLINE' && !isOnline) return false;
+    if (filterConexao === 'OFFLINE' && isOnline) return false;
+
+    // 3. Filtro IA
+    if (filterIA === 'RUNNING' && isIaRunning) return false;
+    if (filterIA === 'STOPPED' && !isIaRunning) return false;
+
+    // 4. Filtro Alertas
+    if (filterAlertas === 'COM_ALERTAS' && !hasAlerta) return false;
+
+    // 5. Filtro Módulos (Multi-select com lógica OR)
+    if (filterModulos.length > 0) {
+      let hasAny = false;
+      if (filterModulos.includes('MATERNIDADE') && hasMaternidade) hasAny = true;
+      if (filterModulos.includes('CONFINAMENTO') && hasConfinamento) hasAny = true;
+      if (filterModulos.includes('ORDENHA') && hasOrdenha) hasAny = true;
+      if (filterModulos.includes('SALA_ESPERA') && hasSalaEspera) hasAny = true;
+      if (filterModulos.includes('QUIMICOS') && hasQuimicos) hasAny = true;
+      if (filterModulos.includes('VITU') && hasVitu) hasAny = true;
+      
+      if (!hasAny) return false;
+    }
+
+    return true;
+  });
+
   return (
     <div className="flex h-screen bg-[#A59D92] font-sans overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col p-6 lg:p-10 custom-scrollbar overflow-y-auto relative text-[#2C3E50]">
-        <header className="flex flex-col lg:flex-row justify-between items-center bg-[#2C3E50] border border-[#2C3E50]/10 p-3 lg:px-6 rounded-2xl shadow-lg relative overflow-hidden group shrink-0">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10"></div>
-          <div className="flex items-center gap-4 relative z-10 transition-transform">
-            <img src="/cara_vaca.png" alt="Logo" className="h-10 w-auto object-contain relative transition-transform group-hover:scale-105" />
-            <div className="w-[1px] h-8 bg-white/10 hidden lg:block"></div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black tracking-tight text-white uppercase leading-none">
-                INOFARM <span className="text-[#A59D92]">VISION</span>
-              </h1>
-              <p className="text-[8px] font-bold text-white/50 uppercase tracking-[0.2em] mt-0.5">Central de Controle Multi-Fazendas</p>
+        <header className="flex flex-col gap-4 bg-[#2C3E50] border border-[#2C3E50]/10 p-4 lg:px-6 rounded-2xl shadow-lg relative group shrink-0">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10 rounded-t-2xl"></div>
+          
+          {/* Top Row: Logo and Status */}
+          <div className="flex flex-col lg:flex-row justify-between items-center relative z-10">
+            <div className="flex items-center gap-4 transition-transform">
+              <div className="flex flex-col">
+                <h1 className="text-xl font-black tracking-tight text-white uppercase leading-none">
+                  INOFARM <span className="text-[#A59D92]">VISION</span>
+                </h1>
+                <p className="text-[8px] font-bold text-white/50 uppercase tracking-[0.2em] mt-0.5">Central de Monitoramento</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6 mt-4 lg:mt-0">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-green-400 rounded-full led-glow"></div>
+                <span className="text-[8px] text-green-400 font-black uppercase tracking-widest">Nuvem Global Estável</span>
+              </div>
+              <div className="bg-black/30 px-3 py-1.5 rounded border border-white/5 flex flex-col items-end">
+                <span className="text-[6px] text-white/40 uppercase tracking-widest font-black">Relógio Mestre</span>
+                <span className="text-sm font-mono text-white tracking-widest">{currentTime}</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 mt-4 lg:mt-0 relative z-10">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-green-400 rounded-full led-glow"></div>
-              <span className="text-[8px] text-green-400 font-black uppercase tracking-widest">Nuvem Global Estável</span>
+          {/* Bottom Row: Search and Filters */}
+          <div className="flex flex-col xl:flex-row gap-4 items-center justify-between relative z-10 pt-4 mt-2 border-t border-white/10">
+            {/* Search */}
+            <div className="relative w-full xl:w-[450px] shrink-0">
+              <input 
+                type="text" 
+                placeholder="Buscar por nome, cidade ou proprietário..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-black/20 border border-white/10 text-white px-4 py-2 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20 placeholder-white/40 shadow-inner transition-all text-sm font-semibold"
+              />
+              <svg className="w-4 h-4 absolute left-3.5 top-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
-            <div className="bg-black/30 px-3 py-1.5 rounded border border-white/5 flex flex-col items-end">
-              <span className="text-[6px] text-white/40 uppercase tracking-widest font-black">Relógio Mestre</span>
-              <span className="text-sm font-mono text-white tracking-widest">{currentTime}</span>
+            
+            {/* Filters */}
+            <div className="flex flex-wrap items-center justify-center xl:justify-end gap-2 w-full">
+              <select value={filterConexao} onChange={e => setFilterConexao(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
+                <option value="ALL" className="bg-white text-[#2C3E50]">Conexão: TODAS</option>
+                <option value="ONLINE" className="bg-white text-[#2C3E50]">🟢 APENAS ONLINE</option>
+                <option value="OFFLINE" className="bg-white text-[#2C3E50]">🔴 APENAS OFFLINE</option>
+              </select>
+              <select value={filterIA} onChange={e => setFilterIA(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
+                <option value="ALL" className="bg-white text-[#2C3E50]">IA: TODAS</option>
+                <option value="RUNNING" className="bg-white text-[#2C3E50]">▶️ IA INICIADA</option>
+                <option value="STOPPED" className="bg-white text-[#2C3E50]">⏹️ IA PARADA</option>
+              </select>
+              <select value={filterAlertas} onChange={e => setFilterAlertas(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
+                <option value="ALL" className="bg-white text-[#2C3E50]">Alertas: TODOS</option>
+                <option value="COM_ALERTAS" className="bg-white text-[#2C3E50]">🚨 APENAS ALERTAS ATIVOS</option>
+              </select>
+              
+              <div className="relative group">
+                <button className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer flex items-center gap-1.5">
+                  Controle de IA: {filterModulos.length === 0 ? 'TODOS' : `${filterModulos.length} SELECIONADOS`}
+                  <svg className="w-3 h-3 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <div className="absolute top-full right-0 mt-1 bg-white border border-[#2C3E50]/20 rounded-xl shadow-xl p-2 hidden group-hover:flex flex-col gap-1 z-50 min-w-[180px]">
+                  {[
+                    { val: 'CONFINAMENTO', label: 'Confinamento' },
+                    { val: 'MATERNIDADE', label: 'Maternidade' },
+                    { val: 'ORDENHA', label: 'Ordenha' },
+                    { val: 'SALA_ESPERA', label: 'Sala de Espera' },
+                    { val: 'QUIMICOS', label: 'Controle Químico' },
+                    { val: 'VITU', label: 'Vitu (Assistente)' },
+                  ].map(opt => (
+                    <label key={opt.val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#2C3E50]/5 rounded cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={filterModulos.includes(opt.val)} 
+                        onChange={(e) => {
+                          if (e.target.checked) setFilterModulos(prev => [...prev, opt.val]);
+                          else setFilterModulos(prev => prev.filter(v => v !== opt.val));
+                        }}
+                        className="rounded border-[#2C3E50]/30 text-[#2C3E50] focus:ring-[#2C3E50]/50 cursor-pointer w-3.5 h-3.5"
+                      />
+                      <span className="text-[10px] font-bold uppercase text-[#2C3E50]">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="text-[9px] text-white/70 font-black uppercase tracking-widest bg-black/20 px-3 py-2 rounded-xl border border-white/5 shrink-0 ml-1">
+                {fazendasFiltradas.length} EXIBIDAS
+              </div>
             </div>
           </div>
         </header>
 
         {/* Grid Central de Fazendas Parceiras */}
         <div className="flex-1 mt-6">
-          {fazendas.length === 0 ? (
+          {fazendasFiltradas.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-[#2C3E50]/50 italic">Nenhuma fazenda registrada. Use o painel de Gestão para adicionar.</p>
+              <p className="text-sm text-[#2C3E50]/50 italic">Nenhuma fazenda encontrada com os filtros atuais.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
-              {fazendas.map(f => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 auto-rows-fr pb-6">
+              {fazendasFiltradas.map(f => {
                 const princ = f.contatos?.find((c: any) => c.isPrincipal) || f.contatos?.[0];
                 const hbMat = heartbeats[`${f.idUnico}_mat`];
                 const hbConf = heartbeats[`${f.idUnico}_conf`];
@@ -468,6 +661,9 @@ export default function CentralDashboard() {
                     proprietario={f.proprietario}
                     contato={princ?.numero}
                     cidade={f.cidade}
+                    anydeskId={f.anydeskId}
+                    anydeskPass={f.anydeskPass}
+                    modulos={f.modulos || []}
                   />
                 );
               })}
@@ -476,17 +672,9 @@ export default function CentralDashboard() {
         </div>
 
         {/* FOOTER */}
-        <footer className="mt-auto pt-6 border-t border-[#2C3E50]/10 flex flex-col lg:flex-row justify-between items-center gap-4 text-[9px] text-[#2C3E50] font-black uppercase tracking-widest opacity-60 shrink-0">
+        <footer className="mt-auto pt-6 border-t border-[#2C3E50]/10 flex flex-col lg:flex-row justify-center items-center gap-8 lg:gap-16 text-[9px] text-[#2C3E50] font-black uppercase tracking-widest opacity-60 shrink-0">
           <div className="flex items-center gap-4">
-            <img src="/cara_vaca.png" alt="Inofarm Icon" className="w-6 h-6 grayscale opacity-50" />
-            <p>© 2026 INOFARM TECHNOLOGIES / MASTER CONTROL</p>
-          </div>
-          <div className="flex gap-10 items-center">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-              <span>REDE GLOBAL ESTÁVEL</span>
-            </div>
-            <span>NÚCLEO CLOUD: 1.1.0-PROD</span>
+            <p>© 2026 Inofarm - Todos os direitos reservados.</p>
           </div>
         </footer>
       </div>
