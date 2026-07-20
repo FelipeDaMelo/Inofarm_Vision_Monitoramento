@@ -5,6 +5,31 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const VERIFY_TOKEN = 'f2e6l0i1p8e9';
 
+/**
+ * Limpa e normaliza um número de telefone para o padrão WhatsApp.
+ * Remove espaços, '+', '-', '(', ')'.
+ * Adiciona o DDI '55' e/ou o dígito '9' para números brasileiros, padronizando em 13 dígitos.
+ */
+function normalizarTelefone(numero: string | number): string {
+  if (!numero) return "";
+  
+  let numLimpo = String(numero).replace(/\D/g, "");
+  
+  if (numLimpo.length === 10) {
+      return `55${numLimpo.substring(0, 2)}9${numLimpo.substring(2)}`;
+  }
+  
+  if (numLimpo.length === 11 && !numLimpo.startsWith("55")) {
+      return `55${numLimpo}`;
+  }
+  
+  if (numLimpo.length === 12 && numLimpo.startsWith("55")) {
+      return `55${numLimpo.substring(2, 4)}9${numLimpo.substring(4)}`;
+  }
+  
+  return numLimpo;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const mode = url.searchParams.get('hub.mode');
@@ -32,8 +57,8 @@ export async function POST(request: Request) {
         // 1. Processar mensagens recebidas (Usuário enviando para o robô)
         if (value.messages && value.messages[0]) {
           const msg = value.messages[0];
-          const phone = msg.from; // Número de quem enviou
-          const contactName = value.contacts?.[0]?.profile?.name || phone;
+          const phone = normalizarTelefone(msg.from); // Número de quem enviou padronizado
+          const contactName = value.contacts?.[0]?.profile?.name || msg.from;
           
           let text = '';
           let audioUrl = '';
@@ -246,7 +271,7 @@ export async function POST(request: Request) {
             console.error(`[WHATSAPP ERROR] Meta Error details:`, JSON.stringify(status.errors, null, 2));
           } else {
             try {
-              const phone = status.recipient_id;
+              const phone = normalizarTelefone(status.recipient_id);
               const msgId = status.id;
               const msgRef = doc(db, 'whatsapp_chats', phone, 'messages', msgId);
               // setDoc with merge in case the message hasn't been fully written yet (race condition)
