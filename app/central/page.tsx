@@ -7,6 +7,16 @@ import { db, rtdb } from "@/lib/firebase";
 
 import Sidebar from "@/app/components/Sidebar";
 
+const formatPhoneNumber = (phone: string) => {
+  if (!phone) return phone;
+  const p = phone.replace(/\D/g, '');
+  if (p.length === 11) return `(${p.substring(0, 2)}) ${p.substring(2, 7)}-${p.substring(7)}`;
+  if (p.length === 13 && p.startsWith('55')) return `(${p.substring(2, 4)}) ${p.substring(4, 9)}-${p.substring(9)}`;
+  if (p.length === 10) return `(${p.substring(0, 2)}) ${p.substring(2, 6)}-${p.substring(6)}`;
+  if (p.length === 12 && p.startsWith('55')) return `(${p.substring(2, 4)}) ${p.substring(4, 8)}-${p.substring(8)}`;
+  return phone;
+};
+
 // Componente para reutilizar UI do Cards
 const FarmCard = ({
   title, data, href = "#", hbMat, hbConf, hbPainel, proprietario, contato, cidade, idUnico, anydeskId, anydeskPass, modulos = []
@@ -142,7 +152,7 @@ const FarmCard = ({
           <div className="flex items-center gap-2">
             <span className="font-bold text-[#2C3E50]/60 min-w-[85px]">CONTATO (PR):</span>
             <a href={`/chat?phone=${contato.replace(/\D/g, '')}`} className="text-emerald-600 font-bold hover:underline cursor-pointer flex items-center gap-1">
-              {contato}
+              {formatPhoneNumber(contato)}
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
             </a>
           </div>
@@ -198,9 +208,10 @@ const FarmCard = ({
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-emerald-500 text-sm">✓</span>
-              <span className="text-[10px] text-emerald-600/80 font-bold uppercase tracking-tight">Tudo Tranquilo</span>
+            <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+              <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
+              </span>
             </div>
           )}
         </div>
@@ -223,13 +234,16 @@ const FarmCard = ({
                   )}
                 </div>
               ) : (
-                <span className="text-[9px] font-bold text-emerald-600 uppercase">Tudo Tranquilo</span>
+                <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                  <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
+                </span>
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-emerald-500 text-sm">✓</span>
-              <span className="text-[10px] text-emerald-600/80 font-bold uppercase tracking-tight">Tudo Tranquilo</span>
+            <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+              <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
+              </span>
             </div>
           )}
         </div>
