@@ -28,7 +28,7 @@ export async function GET() {
 
         console.log(`🔄 [SYNC] Encontrados ${queue.length} registros offline. Tentando sincronizar com o Firebase...`);
         
-        let pendingQueue = [];
+        const pendingQueue = [];
         let successCount = 0;
 
         for (const item of queue) {

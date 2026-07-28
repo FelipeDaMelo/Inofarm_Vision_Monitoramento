@@ -13,7 +13,7 @@ const VERIFY_TOKEN = 'f2e6l0i1p8e9';
 function normalizarTelefone(numero: string | number): string {
   if (!numero) return "";
   
-  let numLimpo = String(numero).replace(/\D/g, "");
+  const numLimpo = String(numero).replace(/\D/g, "");
   
   if (numLimpo.length === 10) {
       return `55${numLimpo.substring(0, 2)}9${numLimpo.substring(2)}`;

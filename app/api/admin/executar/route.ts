@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       cwd = path.join(rootDir, 'inofarm_ia');
     }
     
-    let pythonArgs = [script];
+    const pythonArgs = [script];
     
     if (folder) {
       pythonArgs.push('--pasta');

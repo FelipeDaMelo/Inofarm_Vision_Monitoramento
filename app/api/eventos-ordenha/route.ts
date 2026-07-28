@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Pseudo-Banco de Dados em Memória (perfeito para a fase de testes local)
-let dbOrdenha: any[] = [];
+const dbOrdenha: any[] = [];
 const QUEUE_FILE = path.join(process.cwd(), 'local_sync_queue.json');
 
 export async function POST(request: Request) {

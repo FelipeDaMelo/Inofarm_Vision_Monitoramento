@@ -44,7 +44,10 @@ const FarmCard = ({
 
     const fetchEdgeStatus = async () => {
       try {
-        const res = await fetch(`${baseUrl}/api/status`);
+        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+        const res = await fetch(`${baseUrl}/api/status`, {
+          headers: { 'X-Api-Key': apiKey }
+        });
         if (res.ok) {
           const data = await res.json();
           setEdgeStatus(data);
@@ -69,10 +72,14 @@ const FarmCard = ({
       if (!baseUrl.startsWith('http')) {
         baseUrl = 'https://' + baseUrl;
       }
+      const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
       console.log(`[ACTION] Enviando ${action} para ${target} na URL: ${baseUrl}/api/toggle-ai`);
       const res = await fetch(`${baseUrl}/api/toggle-ai`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey
+        },
         body: JSON.stringify({ target, action })
       });
 
@@ -91,8 +98,8 @@ const FarmCard = ({
         const msg = respData.message || "Comando executado com sucesso!";
         console.log(`[ACTION] Sucesso:`, msg);
         alert(`✅ Sucesso: ${msg}`);
-        // Força atualização do status local
-        const statusRes = await fetch(`${baseUrl}/api/status`);
+        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+        const statusRes = await fetch(`${baseUrl}/api/status`, { headers: { 'X-Api-Key': apiKey } });
         if (statusRes.ok) setEdgeStatus(await statusRes.json());
       } else {
         console.error(`[ACTION] Erro retornado:`, respData.error);
@@ -363,8 +370,10 @@ const FarmCard = ({
                   console.log(`[OTA] Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na URL: ${baseUrl}/api/update`);
                   alert(`Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na fazenda...`);
 
+                  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
                   const res = await fetch(`${baseUrl}/api/update`, {
                     method: 'POST',
+                    headers: { 'X-Api-Key': apiKey },
                     body: formData,
                   });
 
