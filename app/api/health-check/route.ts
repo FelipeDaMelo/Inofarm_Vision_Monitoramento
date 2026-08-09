@@ -1,5 +1,47 @@
 import { NextResponse } from 'next/server';
 import { adminDb, adminRtdb } from '@/lib/firebase-admin';
+import https from 'https';
+import http from 'http';
+
+function fetchIgnorandoSSL(urlStr: string, timeoutMs = 15000): Promise<any> {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const isHttps = url.protocol === 'https:';
+      const client = isHttps ? https : http;
+      const options: any = {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      };
+      if (isHttps) {
+        options.rejectUnauthorized = false;
+      }
+      
+      const req = client.request(url, options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          resolve({
+            ok: res.statusCode && res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            json: async () => {
+              try { return JSON.parse(data); } catch (e) { return {}; }
+            }
+          });
+        });
+      });
+      
+      req.on('error', (e) => reject(e));
+      req.setTimeout(timeoutMs, () => {
+        req.destroy();
+        reject(new Error('AbortError'));
+      });
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
 
 /**
  * GET /api/health-check
@@ -36,15 +78,8 @@ export async function GET() {
       }
 
       try {
-        // Timeout de 15s — se a máquina não responder, está offline
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-
-        const response = await fetch(`${urlLocal}/api/health`, {
-          signal: controller.signal,
-          headers: { 'Accept': 'application/json' },
-        });
-        clearTimeout(timeout);
+        // Timeout de 15s — ignorando erro de certificado do Tailscale
+        const response = await fetchIgnorandoSSL(`${urlLocal}/api/health`, 15000);
 
         if (response.ok) {
           const healthData = await response.json();
