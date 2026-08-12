@@ -229,11 +229,11 @@ const FarmCard = ({
         <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
           <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
           {data?.maternidade ? (
-            <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
-              {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') ? (
+            <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
+              {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? (
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA DE PARTO
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA: {data.maternidade.evento?.includes('DISTOCIA') ? 'DISTOCIA' : 'PARTO'}
                   </span>
                   <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
                   {data.maternidade.evento && (
