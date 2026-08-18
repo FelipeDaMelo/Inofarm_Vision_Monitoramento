@@ -329,7 +329,7 @@ const FarmCard = ({
       {/* Footer do Card */}
       <div className="mt-auto pt-1.5 flex flex-col gap-1.5">
         {/* Controle Remoto de IA */}
-        {(showMaternidade || showConfinamento) && (
+        {(showMaternidade || showConfinamento || showOrdenha) && (
         <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
@@ -365,6 +365,20 @@ const FarmCard = ({
             <div className="flex gap-1">
               <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
               <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+            </div>
+          </div>
+          )}
+
+          {/* VITU (Voz) */}
+          {showOrdenha && (
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_vitu ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+              FUNCIONÁRIO DIGITAL VITU
+            </span>
+            <div className="flex gap-1">
+              <button disabled={edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_vitu ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+              <button disabled={!edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_vitu ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
             </div>
           </div>
           )}
@@ -425,8 +439,9 @@ const FarmCard = ({
                   'agente_maternidade_hibrido.py': 'maternidade',
                   'monitoramento_confinamento.py': 'confinamento',
                   'painel_local.py': '',
+                  'api_vitu.py': 'VITU',
                 };
-                const defaultPath = pastasPorArquivo[file.name] ?? (file.name.includes('confinamento') ? 'confinamento' : file.name.includes('maternidade') ? 'maternidade' : '');
+                const defaultPath = pastasPorArquivo[file.name] ?? (file.name.includes('confinamento') ? 'confinamento' : file.name.includes('maternidade') ? 'maternidade' : file.name.includes('vitu') ? 'VITU' : '');
                 const targetPath = prompt(`Para qual subpasta o arquivo '${file.name}' deve ir?\n(Detectado automaticamente: '${defaultPath || 'raiz'}')`, defaultPath);
 
                 if (targetPath === null) {
