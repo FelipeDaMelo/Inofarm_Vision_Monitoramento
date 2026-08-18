@@ -23,9 +23,11 @@ const FarmCard = ({
 }: {
   title: string, data: any, href?: string, hbMat?: any, hbConf?: any, hbPainel?: any, proprietario?: string, contato?: string, cidade?: string, idUnico?: string, anydeskId?: string, anydeskPass?: string, modulos?: string[]
 }) => {
+  const [viewingCamera, setViewingCamera] = useState<string | null>(null);
   const nowSecs = Date.now() / 1000;
   const showConfinamento = modulos.includes('CONFINAMENTO') || !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf;
   const showMaternidade = modulos.includes('MATERNIDADE') || !!data?.maternidade || !!hbMat;
+  const showOrdenha = modulos.includes('ORDENHA') || !!data?.herdmetrix;
   const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
   const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
   const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
@@ -129,6 +131,39 @@ const FarmCard = ({
     window.open('https://anydesk.com/download', '_blank');
   };
 
+  const getCameraButtons = (type: string) => {
+    if (!edgeStatus?.cameras) return null;
+    const sectorCameras = edgeStatus.cameras.filter((c: any) => c.type === type);
+    if (sectorCameras.length === 0) return null;
+
+    return (
+      <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-[#2C3E50]/5">
+        {sectorCameras.map((c: any, idx: number) => (
+          <button
+            key={idx}
+            onClick={() => setViewingCamera(c.name)}
+            disabled={!c.cam_ok}
+            className={`flex items-center justify-between px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all ${c.cam_ok ? 'bg-[#2C3E50]/5 text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white cursor-pointer' : 'bg-red-500/10 text-red-500/50 cursor-not-allowed'}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              {c.name.replace(/_/g, ' ')}
+            </div>
+            {!c.cam_ok && <span>OFFLINE</span>}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  let baseUrl = href;
+  if (baseUrl !== "#") {
+    baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
+  }
+  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+  const painelUrl = baseUrl !== "#" ? `${baseUrl}/painel?admin_token=${apiKey}` : "#";
+
   return (
     <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-3 gap-2 h-full">
       {/* Header do Card */}
@@ -178,6 +213,7 @@ const FarmCard = ({
         {showConfinamento && (
         <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
           <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
+          {getCameraButtons('confinamento')}
           {data?.compost_barn_cama || data?.status_rebanho || data?.status_manejo ? (
             <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
               {/* Linha 1: Status do Rebanho (Independente) */}
@@ -228,6 +264,7 @@ const FarmCard = ({
         {showMaternidade && (
         <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
           <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
+          {getCameraButtons('maternidade')}
           {data?.maternidade ? (
             <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
               {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? (
@@ -255,6 +292,38 @@ const FarmCard = ({
           )}
         </div>
         )}
+
+        {/* Ordenha / HerdMetrix */}
+        {showOrdenha && (
+        <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
+          <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Ordenha (HerdMetrix)</h3>
+          {data?.herdmetrix?.ultimo_sync ? (
+            <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+              <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100 mt-1">
+                <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Último Arquivo</span>
+                <span className="text-[10px] text-[#2C3E50] font-mono font-black tracking-widest">
+                  {data.herdmetrix.ultimo_sync.includes('T') ? new Date(data.herdmetrix.ultimo_sync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : data.herdmetrix.ultimo_sync}
+                </span>
+              </div>
+              {data.herdmetrix.erros && data.herdmetrix.erros.length > 0 && (
+                <div className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-200 mt-1">
+                  <span className="text-[9px] text-red-600 uppercase font-bold tracking-wide flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                    FALHA RECENTE
+                  </span>
+                  <span className="text-[8px] text-red-700 font-bold truncate max-w-[100px]">{data.herdmetrix.erros[0]}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+              <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                <span className="text-emerald-500 text-xs">✓</span> SERVIÇO ATIVO
+              </span>
+            </div>
+          )}
+        </div>
+        )}
       </div>
 
       {/* Footer do Card */}
@@ -262,7 +331,15 @@ const FarmCard = ({
         {/* Controle Remoto de IA */}
         {(showMaternidade || showConfinamento) && (
         <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
-          <span className="text-[8px] font-black uppercase text-[#2C3E50] mb-1">Controle de IA (Edge)</span>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
+            {edgeStatus && (
+              <div className="flex items-center gap-2 text-[8px] font-black font-mono">
+                <span className={`${edgeStatus.cpu > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>CPU: {edgeStatus.cpu}%</span>
+                <span className={`${edgeStatus.ram > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>RAM: {edgeStatus.ram}%</span>
+              </div>
+            )}
+          </div>
 
           {/* Maternidade */}
           {showMaternidade && (
@@ -295,7 +372,7 @@ const FarmCard = ({
         )}
 
         <div className="flex gap-2 w-full">
-          <a href={href} target="_blank" className="flex-1 flex">
+          <a href={painelUrl} target="_blank" className="flex-1 flex">
             <button className="w-full py-2 bg-[#2C3E50] text-[#A59D92] font-black text-[9px] uppercase tracking-widest rounded transition-all hover:bg-[#1a252f] cursor-pointer shadow-md flex items-center justify-center gap-1.5">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                 <rect width="20" height="14" x="2" y="3" rx="2" />
@@ -412,6 +489,38 @@ const FarmCard = ({
           </button>
         </div>
       </div>
+
+      {/* Modal de Câmera */}
+      {viewingCamera && (
+        <div className="fixed inset-0 bg-[#2C3E50]/95 z-[9999] flex justify-center items-center p-6" onClick={() => setViewingCamera(null)}>
+          <div className="bg-white p-4 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/20 flex flex-col relative" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 border-b border-[#2C3E50]/10 pb-3">
+              <h3 className="text-sm font-black uppercase text-[#2C3E50] tracking-widest flex items-center">
+                <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> 
+                {viewingCamera.replace(/_/g, ' ')} - {title}
+              </h3>
+              <button onClick={() => setViewingCamera(null)} className="text-[#2C3E50]/50 hover:text-red-500 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            <div className="relative w-full bg-black rounded-xl overflow-hidden shadow-inner aspect-video flex items-center justify-center">
+              <img 
+                src={`${baseUrl}/api/stream/${viewingCamera}`} 
+                alt="Live Stream" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <div className="hidden absolute inset-0 flex-col items-center justify-center text-white/50 text-xs font-bold uppercase tracking-widest gap-2">
+                <svg className="w-8 h-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                Sem Sinal / Câmera Offline
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

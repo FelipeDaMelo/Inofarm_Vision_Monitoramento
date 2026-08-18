@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   description: "Sistema de monitoramento inteligente Inofarm",
 };
 
+import { AuthProvider } from "@/app/context/AuthContext";
+import ProtectedRoute from "@/app/components/ProtectedRoute";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,7 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${robotoMono.variable} h-full antialiased`}>
-      <body suppressHydrationWarning className="min-h-full flex flex-col font-sans">{children}</body>
+      <body suppressHydrationWarning className="min-h-full flex flex-col font-sans">
+        <AuthProvider>
+          <ProtectedRoute>
+            {children}
+          </ProtectedRoute>
+        </AuthProvider>
+      </body>
     </html>
   );
 }

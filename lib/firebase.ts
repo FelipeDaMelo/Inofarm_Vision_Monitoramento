@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
+import { getAuth, setPersistence, browserSessionPersistence } from "firebase/auth";
 
 // Credenciais da Central Inofarm Vision
 const firebaseConfig = {
@@ -23,9 +24,17 @@ try {
   console.warn("⚠️ [AVISO] Falha ao inicializar o Firebase.", error);
 }
 
-// Banco de Dados e Storage da Plataforma
+// Serviços da Plataforma
 const db = (app ? getFirestore(app) : null) as any;
 const rtdb = (app ? getDatabase(app) : null) as any;
 const storage = (app ? getStorage(app) : null) as any;
+const auth = (app ? getAuth(app) : null) as any;
 
-export { app, db, rtdb, storage };
+// Força o Firebase a NÂO salvar a senha (exige login toda vez que abrir o site)
+if (auth && typeof window !== "undefined") {
+  setPersistence(auth, browserSessionPersistence).catch((error) => {
+    console.error("Erro ao configurar persistência de login:", error);
+  });
+}
+
+export { app, db, rtdb, storage, auth };
