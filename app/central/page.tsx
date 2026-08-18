@@ -28,6 +28,7 @@ const FarmCard = ({
   const showConfinamento = modulos.includes('CONFINAMENTO') || !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf;
   const showMaternidade = modulos.includes('MATERNIDADE') || !!data?.maternidade || !!hbMat;
   const showOrdenha = modulos.includes('ORDENHA') || !!data?.herdmetrix;
+  const hasVitu = modulos.includes('VITU');
   const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
   const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
   const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
@@ -162,7 +163,7 @@ const FarmCard = ({
     if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
   }
   const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
-  const painelUrl = baseUrl !== "#" ? `${baseUrl}/painel` : "#";
+  const painelUrl = baseUrl !== "#" ? `${baseUrl}/` : "#";
 
   return (
     <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-3 gap-2 h-full">
@@ -329,7 +330,7 @@ const FarmCard = ({
       {/* Footer do Card */}
       <div className="mt-auto pt-1.5 flex flex-col gap-1.5">
         {/* Controle Remoto de IA */}
-        {(showMaternidade || showConfinamento || showOrdenha) && (
+        {(showMaternidade || showConfinamento || showOrdenha || hasVitu) && (
         <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
@@ -370,7 +371,7 @@ const FarmCard = ({
           )}
 
           {/* VITU (Voz) */}
-          {showOrdenha && (
+          {hasVitu && (
           <div className="flex items-center justify-between gap-2 mt-1">
             <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_vitu ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
