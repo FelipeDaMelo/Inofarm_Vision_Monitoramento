@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     // 1. Validar a API Key do Edge Worker
     const apiKey = request.headers.get("x-api-key");
-    const expectedApiKey = process.env.VITU_WEBHOOK_API_KEY || "F2e6l0i1p8e9"; // Fallback do config_vitu.json para testes
+    const expectedApiKey = process.env.VITU_WEBHOOK_API_KEY;
 
     if (!apiKey || apiKey !== expectedApiKey) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });

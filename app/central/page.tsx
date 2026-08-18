@@ -46,7 +46,7 @@ const FarmCard = ({
 
     const fetchEdgeStatus = async () => {
       try {
-        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
         const res = await fetch(`${baseUrl}/api/status`, {
           headers: { 'X-Api-Key': apiKey }
         });
@@ -74,7 +74,7 @@ const FarmCard = ({
       if (!baseUrl.startsWith('http')) {
         baseUrl = 'https://' + baseUrl;
       }
-      const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+      const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
       console.log(`[ACTION] Enviando ${action} para ${target} na URL: ${baseUrl}/api/toggle-ai`);
       const res = await fetch(`${baseUrl}/api/toggle-ai`, {
         method: 'POST',
@@ -100,7 +100,7 @@ const FarmCard = ({
         const msg = respData.message || "Comando executado com sucesso!";
         console.log(`[ACTION] Sucesso:`, msg);
         alert(`✅ Sucesso: ${msg}`);
-        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
         const statusRes = await fetch(`${baseUrl}/api/status`, { headers: { 'X-Api-Key': apiKey } });
         if (statusRes.ok) setEdgeStatus(await statusRes.json());
       } else {
@@ -161,8 +161,8 @@ const FarmCard = ({
     baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
   }
-  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
-  const painelUrl = baseUrl !== "#" ? `${baseUrl}/painel?admin_token=${apiKey}` : "#";
+  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
+  const painelUrl = baseUrl !== "#" ? `${baseUrl}/painel` : "#";
 
   return (
     <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-3 gap-2 h-full">
@@ -447,7 +447,7 @@ const FarmCard = ({
                   console.log(`[OTA] Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na URL: ${baseUrl}/api/update`);
                   alert(`Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na fazenda...`);
 
-                  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || 'inofarm_edge_secret_2026';
+                  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
                   const res = await fetch(`${baseUrl}/api/update`, {
                     method: 'POST',
                     headers: { 'X-Api-Key': apiKey },

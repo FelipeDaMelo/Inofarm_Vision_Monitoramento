@@ -3,7 +3,7 @@ import { db, storage } from '@/lib/firebase';
 import { doc, setDoc, collection, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const VERIFY_TOKEN = 'f2e6l0i1p8e9';
+
 
 /**
  * Limpa e normaliza um número de telefone para o padrão WhatsApp.
@@ -37,7 +37,8 @@ export async function GET(request: Request) {
   const challenge = url.searchParams.get('hub.challenge');
 
   if (mode && token) {
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+    if (mode === 'subscribe' && token === verifyToken) {
       console.log('WEBHOOK_VERIFIED');
       return new NextResponse(challenge, { status: 200 });
     }
