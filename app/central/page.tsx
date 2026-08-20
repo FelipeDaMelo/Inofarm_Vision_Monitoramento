@@ -28,7 +28,7 @@ const FarmCard = ({
   const showConfinamento = modulos.includes('CONFINAMENTO') || !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf;
   const showMaternidade = modulos.includes('MATERNIDADE') || !!data?.maternidade || !!hbMat;
   const showOrdenha = modulos.includes('ORDENHA') || !!data?.herdmetrix;
-  const hasVitu = modulos.includes('VITU');
+  const hasVitu = true; // Sempre mostra o controle do VITU
   const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
   const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
   const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
