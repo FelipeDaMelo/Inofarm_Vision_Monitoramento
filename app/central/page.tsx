@@ -646,7 +646,7 @@ export default function CentralDashboard() {
     const hasAlertaConfinamento = data?.status_manejo === 'EM ANDAMENTO';
     const hasAlerta = hasAlertaMaternidade || hasAlertaConfinamento;
 
-    const fModulos = f.modulos || [];
+    const fModulos = (f.modulos || []).map((m: string) => m.toUpperCase());
     const hasMaternidade = !!data?.maternidade || !!hbMat || fModulos.includes("MATERNIDADE");
     const hasConfinamento = !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf || fModulos.includes("CONFINAMENTO");
     const hasOrdenha = fModulos.includes("ORDENHA");
@@ -811,7 +811,7 @@ export default function CentralDashboard() {
                     cidade={f.cidade}
                     anydeskId={f.anydeskId}
                     anydeskPass={f.anydeskPass}
-                    modulos={f.modulos || []}
+                    modulos={(f.modulos || []).map((m: string) => m.toUpperCase())}
                   />
                 );
               })}
