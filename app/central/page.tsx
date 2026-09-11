@@ -28,7 +28,7 @@ const FarmCard = ({
   const showConfinamento = modulos.includes('CONFINAMENTO') || !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf;
   const showMaternidade = modulos.includes('MATERNIDADE') || !!data?.maternidade || !!hbMat;
   const showOrdenha = modulos.includes('ORDENHA') || !!data?.herdmetrix;
-  const hasVitu = true; // Sempre mostra o controle do VITU
+  const hasVitu = true; // Sempre mostra o controle do VITU 
   const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
   const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
   const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
@@ -79,7 +79,7 @@ const FarmCard = ({
       console.log(`[ACTION] Enviando ${action} para ${target} na URL: ${baseUrl}/api/toggle-ai`);
       const res = await fetch(`${baseUrl}/api/toggle-ai`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-Api-Key': apiKey
         },
@@ -212,118 +212,118 @@ const FarmCard = ({
       <div className="flex-1 flex flex-col gap-2">
         {/* Confinamento */}
         {showConfinamento && (
-        <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-          <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
-          {getCameraButtons('confinamento')}
-          {data?.compost_barn_cama || data?.status_rebanho || data?.status_manejo ? (
-            <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-              {/* Linha 1: Status do Rebanho (Independente) */}
-              <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
-                <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">THI</span>
-                <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded ${data?.status_rebanho?.status_maioria?.includes('PÉ') ? 'bg-emerald-100 text-emerald-700' : data?.status_rebanho?.status_maioria?.includes('DEITADA') ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'}`}>
-                  {data?.status_rebanho?.status_maioria || "CALCULANDO..."}
-                </span>
-              </div>
-
-              {/* Linha 2: Monitoramento de Trator (Independente) */}
-              <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
-                <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Monitoramento Trator</span>
-                {data?.status_manejo === 'EM ANDAMENTO' ? (
-                  <span className="text-[10px] text-red-600 font-black uppercase tracking-wider animate-pulse border border-red-500/30 bg-red-50 px-2 py-0.5 rounded shadow-sm">
-                    🚨 TRATOR NA CAMA
+          <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
+            {getCameraButtons('confinamento')}
+            {data?.compost_barn_cama || data?.status_rebanho || data?.status_manejo ? (
+              <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+                {/* Linha 1: Status do Rebanho (Independente) */}
+                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
+                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">THI</span>
+                  <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded ${data?.status_rebanho?.status_maioria?.includes('PÉ') ? 'bg-emerald-100 text-emerald-700' : data?.status_rebanho?.status_maioria?.includes('DEITADA') ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'}`}>
+                    {data?.status_rebanho?.status_maioria || "CALCULANDO..."}
                   </span>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[8px] text-[#2C3E50]/50 uppercase font-bold">Último Manejo:</span>
-                    <span className="text-[10px] text-[#2C3E50]/80 font-mono font-bold">
-                      {data?.compost_barn_cama?.data_finalizacao
-                        ? (data.compost_barn_cama.data_finalizacao.includes('T') || data.compost_barn_cama.data_finalizacao.length > 20
-                          ? new Date(data.compost_barn_cama.data_finalizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                          : data.compost_barn_cama.data_finalizacao)
-                        : "--:--"}
+                </div>
+
+                {/* Linha 2: Monitoramento de Trator (Independente) */}
+                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
+                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Monitoramento Trator</span>
+                  {data?.status_manejo === 'EM ANDAMENTO' ? (
+                    <span className="text-[10px] text-red-600 font-black uppercase tracking-wider animate-pulse border border-red-500/30 bg-red-50 px-2 py-0.5 rounded shadow-sm">
+                      🚨 TRATOR NA CAMA
                     </span>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[8px] text-[#2C3E50]/50 uppercase font-bold">Último Manejo:</span>
+                      <span className="text-[10px] text-[#2C3E50]/80 font-mono font-bold">
+                        {data?.compost_barn_cama?.data_finalizacao
+                          ? (data.compost_barn_cama.data_finalizacao.includes('T') || data.compost_barn_cama.data_finalizacao.length > 20
+                            ? new Date(data.compost_barn_cama.data_finalizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                            : data.compost_barn_cama.data_finalizacao)
+                          : "--:--"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {!isOnline && (
+                  <div className="text-[8px] text-center text-red-500 font-bold uppercase tracking-widest mt-[-4px]">
+                    (Dados Desatualizados - Fazenda Offline)
                   </div>
                 )}
               </div>
-              {!isOnline && (
-                <div className="text-[8px] text-center text-red-500 font-bold uppercase tracking-widest mt-[-4px]">
-                  (Dados Desatualizados - Fazenda Offline)
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
-              <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
-              </span>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+                <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                  <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
+                </span>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Maternidade */}
         {showMaternidade && (
-        <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-          <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
-          {getCameraButtons('maternidade')}
-          {data?.maternidade ? (
-            <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
-              {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? (
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA: {data.maternidade.evento?.includes('DISTOCIA') ? 'DISTOCIA' : 'PARTO'}
+          <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
+            {getCameraButtons('maternidade')}
+            {data?.maternidade ? (
+              <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
+                {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA: {data.maternidade.evento?.includes('DISTOCIA') ? 'DISTOCIA' : 'PARTO'}
+                    </span>
+                    <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
+                    {data.maternidade.evento && (
+                      <span className="text-[8px] text-red-600 font-bold mt-1">{(data.maternidade.evento).replace(/_/g, ' ')}</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                    <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
                   </span>
-                  <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
-                  {data.maternidade.evento && (
-                    <span className="text-[8px] text-red-600 font-bold mt-1">{(data.maternidade.evento).replace(/_/g, ' ')}</span>
-                  )}
-                </div>
-              ) : (
+                )}
+              </div>
+            ) : (
+              <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
                 <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
                   <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
                 </span>
-              )}
-            </div>
-          ) : (
-            <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
-              <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
-              </span>
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Ordenha / HerdMetrix */}
         {showOrdenha && (
-        <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-          <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Ordenha (HerdMetrix)</h3>
-          {data?.herdmetrix?.ultimo_sync ? (
-            <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-              <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100 mt-1">
-                <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Último Arquivo</span>
-                <span className="text-[10px] text-[#2C3E50] font-mono font-black tracking-widest">
-                  {data.herdmetrix.ultimo_sync.includes('T') ? new Date(data.herdmetrix.ultimo_sync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : data.herdmetrix.ultimo_sync}
+          <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Ordenha (HerdMetrix)</h3>
+            {data?.herdmetrix?.ultimo_sync ? (
+              <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100 mt-1">
+                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Último Arquivo</span>
+                  <span className="text-[10px] text-[#2C3E50] font-mono font-black tracking-widest">
+                    {data.herdmetrix.ultimo_sync.includes('T') ? new Date(data.herdmetrix.ultimo_sync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : data.herdmetrix.ultimo_sync}
+                  </span>
+                </div>
+                {data.herdmetrix.erros && data.herdmetrix.erros.length > 0 && (
+                  <div className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-200 mt-1">
+                    <span className="text-[9px] text-red-600 uppercase font-bold tracking-wide flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                      FALHA RECENTE
+                    </span>
+                    <span className="text-[8px] text-red-700 font-bold truncate max-w-[100px]">{data.herdmetrix.erros[0]}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+                <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                  <span className="text-emerald-500 text-xs">✓</span> SERVIÇO ATIVO
                 </span>
               </div>
-              {data.herdmetrix.erros && data.herdmetrix.erros.length > 0 && (
-                <div className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-200 mt-1">
-                  <span className="text-[9px] text-red-600 uppercase font-bold tracking-wide flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                    FALHA RECENTE
-                  </span>
-                  <span className="text-[8px] text-red-700 font-bold truncate max-w-[100px]">{data.herdmetrix.erros[0]}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
-              <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                <span className="text-emerald-500 text-xs">✓</span> SERVIÇO ATIVO
-              </span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -331,59 +331,59 @@ const FarmCard = ({
       <div className="mt-auto pt-1.5 flex flex-col gap-1.5">
         {/* Controle Remoto de IA */}
         {(showMaternidade || showConfinamento || showOrdenha || hasVitu) && (
-        <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
-            {edgeStatus && (
-              <div className="flex items-center gap-2 text-[8px] font-black font-mono">
-                <span className={`${edgeStatus.cpu > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>CPU: {edgeStatus.cpu}%</span>
-                <span className={`${edgeStatus.ram > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>RAM: {edgeStatus.ram}%</span>
+          <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
+              {edgeStatus && (
+                <div className="flex items-center gap-2 text-[8px] font-black font-mono">
+                  <span className={`${edgeStatus.cpu > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>CPU: {edgeStatus.cpu}%</span>
+                  <span className={`${edgeStatus.ram > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>RAM: {edgeStatus.ram}%</span>
+                </div>
+              )}
+            </div>
+
+            {/* Maternidade */}
+            {showMaternidade && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                  MATERNIDADE
+                </span>
+                <div className="flex gap-1">
+                  <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                  <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Confinamento */}
+            {showConfinamento && (
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                  CONFINAMENTO
+                </span>
+                <div className="flex gap-1">
+                  <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                  <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                </div>
+              </div>
+            )}
+
+            {/* VITU (Voz) */}
+            {hasVitu && (
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_vitu ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                  FUNCIONÁRIO DIGITAL VITU
+                </span>
+                <div className="flex gap-1">
+                  <button disabled={edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_vitu ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
+                  <button disabled={!edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_vitu ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                </div>
               </div>
             )}
           </div>
-
-          {/* Maternidade */}
-          {showMaternidade && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
-              MATERNIDADE
-            </span>
-            <div className="flex gap-1">
-              <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-              <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
-            </div>
-          </div>
-          )}
-
-          {/* Confinamento */}
-          {showConfinamento && (
-          <div className="flex items-center justify-between gap-2 mt-1">
-            <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
-              CONFINAMENTO
-            </span>
-            <div className="flex gap-1">
-              <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-              <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
-            </div>
-          </div>
-          )}
-
-          {/* VITU (Voz) */}
-          {hasVitu && (
-          <div className="flex items-center justify-between gap-2 mt-1">
-            <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_vitu ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
-              FUNCIONÁRIO DIGITAL VITU
-            </span>
-            <div className="flex gap-1">
-              <button disabled={edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_vitu ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-              <button disabled={!edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_vitu ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
-            </div>
-          </div>
-          )}
-        </div>
         )}
 
         <div className="flex gap-2 w-full">
@@ -512,7 +512,7 @@ const FarmCard = ({
           <div className="bg-white p-4 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/20 flex flex-col relative" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4 border-b border-[#2C3E50]/10 pb-3">
               <h3 className="text-sm font-black uppercase text-[#2C3E50] tracking-widest flex items-center">
-                <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> 
+                <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
                 {viewingCamera.replace(/_/g, ' ')} - {title}
               </h3>
               <button onClick={() => setViewingCamera(null)} className="text-[#2C3E50]/50 hover:text-red-500 transition-colors">
@@ -520,9 +520,9 @@ const FarmCard = ({
               </button>
             </div>
             <div className="relative w-full bg-black rounded-xl overflow-hidden shadow-inner aspect-video flex items-center justify-center">
-              <img 
-                src={`${baseUrl}/api/stream/${viewingCamera}`} 
-                alt="Live Stream" 
+              <img
+                src={`${baseUrl}/api/stream/${viewingCamera}`}
+                alt="Live Stream"
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -624,9 +624,9 @@ export default function CentralDashboard() {
   const fazendasFiltradas = fazendas.filter(f => {
     // 1. Busca por Texto
     const s = searchTerm.toLowerCase();
-    const matchText = (f.nome || "").toLowerCase().includes(s) || 
-                      (f.cidade || "").toLowerCase().includes(s) || 
-                      (f.proprietario || "").toLowerCase().includes(s);
+    const matchText = (f.nome || "").toLowerCase().includes(s) ||
+      (f.cidade || "").toLowerCase().includes(s) ||
+      (f.proprietario || "").toLowerCase().includes(s);
     if (!matchText) return false;
 
     // Dados de Status para filtros avançados
@@ -674,7 +674,7 @@ export default function CentralDashboard() {
       if (filterModulos.includes('SALA_ESPERA') && hasSalaEspera) hasAny = true;
       if (filterModulos.includes('QUIMICOS') && hasQuimicos) hasAny = true;
       if (filterModulos.includes('VITU') && hasVitu) hasAny = true;
-      
+
       if (!hasAny) return false;
     }
 
@@ -687,7 +687,7 @@ export default function CentralDashboard() {
       <div className="flex-1 flex flex-col p-6 lg:p-10 custom-scrollbar overflow-y-auto relative text-[#2C3E50]">
         <header className="flex flex-col gap-4 bg-[#2C3E50] border border-[#2C3E50]/10 p-4 lg:px-6 rounded-2xl shadow-lg relative group shrink-0">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10 rounded-t-2xl"></div>
-          
+
           {/* Top Row: Logo and Status */}
           <div className="flex flex-col lg:flex-row justify-between items-center relative z-10">
             <div className="flex items-center gap-4 transition-transform">
@@ -715,9 +715,9 @@ export default function CentralDashboard() {
           <div className="flex flex-col xl:flex-row gap-4 items-center justify-between relative z-10 pt-4 mt-2 border-t border-white/10">
             {/* Search */}
             <div className="relative w-full xl:w-[450px] shrink-0">
-              <input 
-                type="text" 
-                placeholder="Buscar por nome, cidade ou proprietário..." 
+              <input
+                type="text"
+                placeholder="Buscar por nome, cidade ou proprietário..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full bg-black/20 border border-white/10 text-white px-4 py-2 pl-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/20 placeholder-white/40 shadow-inner transition-all text-sm font-semibold"
@@ -726,7 +726,7 @@ export default function CentralDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            
+
             {/* Filters */}
             <div className="flex flex-wrap items-center justify-center xl:justify-end gap-2 w-full">
               <select value={filterConexao} onChange={e => setFilterConexao(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
@@ -743,7 +743,7 @@ export default function CentralDashboard() {
                 <option value="ALL" className="bg-white text-[#2C3E50]">Alertas: TODOS</option>
                 <option value="COM_ALERTAS" className="bg-white text-[#2C3E50]">🚨 APENAS ALERTAS ATIVOS</option>
               </select>
-              
+
               <div className="relative group">
                 <button className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer flex items-center gap-1.5">
                   Controle de IA: {filterModulos.length === 0 ? 'TODOS' : `${filterModulos.length} SELECIONADOS`}
@@ -759,9 +759,9 @@ export default function CentralDashboard() {
                     { val: 'VITU', label: 'Vitu (Assistente)' },
                   ].map(opt => (
                     <label key={opt.val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#2C3E50]/5 rounded cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={filterModulos.includes(opt.val)} 
+                      <input
+                        type="checkbox"
+                        checked={filterModulos.includes(opt.val)}
                         onChange={(e) => {
                           if (e.target.checked) setFilterModulos(prev => [...prev, opt.val]);
                           else setFilterModulos(prev => prev.filter(v => v !== opt.val));
