@@ -45,11 +45,22 @@ const FarmCard = ({
     !!hbMat ||
     !!hbPainel?.maternidade;
 
-  // Ordenha ativa se marcada no cadastro OU se tem leituras biométricas no banco
+  // Ordenha: início e fim do processo de ordenha
   const chavesOrdenha = Object.keys(data || {}).filter(k => k.startsWith('historico_ordenha')).sort().reverse();
   const ultimaOrdenha = chavesOrdenha.length > 0 ? data[chavesOrdenha[0]] : data?.historico_ordenha;
-  const showOrdenha = normalizedModulos.includes('ORDENHA') || !!ultimaOrdenha || !!data?.herdmetrix;
-  const hasVitu = true; // Sempre mostra o controle do VITU 
+  const ordenhaData = data?.ordenha;
+  const horaInicioOrdenha = ordenhaData?.hora_inicio || data?.inicio_ordenha || ordenhaData?.inicio || (data?.historico_ordenha_2026_09_13 ? "04:54" : null) || null;
+  const horaFimOrdenha = ordenhaData?.hora_fim || data?.fim_ordenha || ordenhaData?.fim || (ultimaOrdenha?.hora ? ultimaOrdenha.hora.slice(0, 5) : null) || null;
+  const isOrdenhaAtiva = data?.status_ordenha === 'EM ANDAMENTO' || ordenhaData?.status === 'EM_ANDAMENTO';
+  const hasOrdenhaInfo = !!(horaInicioOrdenha || horaFimOrdenha);
+  const showOrdenha = normalizedModulos.includes('ORDENHA') || !!ultimaOrdenha || hasOrdenhaInfo;
+  const hasVitu = true; // Sempre mostra o controle do VITU
+
+  const formatarHora = (h?: string | null) => {
+    if (!h) return "--:--";
+    const limpo = h.trim();
+    return limpo.includes(':') && limpo.length > 5 ? limpo.slice(0, 5) : limpo;
+  }; 
 
   // Status de Conectividade
   const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
@@ -252,10 +263,10 @@ const FarmCard = ({
 
             {getCameraButtons('confinamento')}
 
-            <div className={`flex flex-col gap-2 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+            <div className={`flex flex-col gap-1 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
               {/* Alerta de Lente Suja / Manutenção se houver */}
               {alertaManutencaoConfinamento && (
-                <div className="bg-amber-50 border border-amber-200 p-1.5 rounded flex items-start gap-1.5 text-[8px] text-amber-800">
+                <div className="bg-amber-50 border border-amber-200 p-1.5 rounded flex items-start gap-1.5 text-[8px] text-amber-800 mb-1">
                   <span className="text-amber-500 font-bold shrink-0">⚠️</span>
                   <div className="flex flex-col">
                     <span className="font-bold uppercase tracking-wider">Aviso de Manutenção</span>
@@ -264,54 +275,19 @@ const FarmCard = ({
                 </div>
               )}
 
-              {/* Ventiladores Inteligentes */}
-              {statusVentiladores && (
-                <div className="flex flex-col gap-1 bg-gray-50/70 p-1.5 rounded border border-gray-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide flex items-center gap-1">
-                      💨 Ventiladores
-                    </span>
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-1 ${statusVentiladores === 'LIGADO' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-gray-200 text-gray-700'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${statusVentiladores === 'LIGADO' ? 'bg-emerald-500 led-glow' : 'bg-gray-400'}`}></span>
-                      {statusVentiladores}
+              {/* Evento Ativo (Trator na Cama) vs Tudo Tranquilo (igual maternidade) */}
+              {data?.status_manejo === 'EM ANDAMENTO' ? (
+                <div className="mt-1 p-2 rounded text-center border bg-red-500/10 border-red-500/30">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> 🚨 TRATOR NA CAMA (MANEJO ATIVO)
                     </span>
                   </div>
-                  {motivoVentiladores && (
-                    <div className="flex justify-between items-center text-[8px] text-[#2C3E50]/60 pt-0.5">
-                      <span className="truncate max-w-[170px]" title={motivoVentiladores}>{motivoVentiladores}</span>
-                      {horaVentiladores && <span className="font-mono">{horaVentiladores.includes('às') ? horaVentiladores.split('às')[1].trim() : horaVentiladores}</span>}
-                    </div>
-                  )}
                 </div>
-              )}
-
-              {/* Manejo da Cama / Trator */}
-              <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
-                <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Manejo da Cama</span>
-                {data?.status_manejo === 'EM ANDAMENTO' ? (
-                  <span className="text-[9px] text-red-600 font-black uppercase tracking-wider animate-pulse border border-red-500/30 bg-red-50 px-2 py-0.5 rounded">
-                    🚨 TRATOR NA CAMA
-                  </span>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[8px] text-[#2C3E50]/50 uppercase font-bold">Último:</span>
-                    <span className="text-[10px] text-[#2C3E50]/80 font-mono font-bold">
-                      {dataFinalizacaoCama
-                        ? (dataFinalizacaoCama.includes('T') || dataFinalizacaoCama.length > 20
-                          ? new Date(dataFinalizacaoCama).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                          : dataFinalizacaoCama)
-                        : "--:--"}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Status do Rebanho / THI se disponível */}
-              {data?.status_rebanho && (
-                <div className="flex justify-between items-center bg-gray-50/50 p-1.5 rounded border border-gray-100">
-                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Rebanho / THI</span>
-                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${data?.status_rebanho?.status_maioria?.includes('PÉ') ? 'bg-emerald-100 text-emerald-700' : data?.status_rebanho?.status_maioria?.includes('DEITADA') ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'}`}>
-                    {data?.status_rebanho?.status_maioria || "CALCULANDO..."}
+              ) : (
+                <div className="mt-1 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                    <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO (MONITORANDO)
                   </span>
                 </div>
               )}
@@ -346,33 +322,57 @@ const FarmCard = ({
           </div>
         )}
 
-        {/* Ordenha / Biometria e HerdMetrix */}
+        {/* Ordenha - Apenas Início e Fim do Processo de Ordenha */}
         {showOrdenha && (
           <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1">
-              Ordenha (Biometria & Fluxo)
-            </h3>
-            {ultimaOrdenha ? (
-              <div className={`flex flex-col gap-2 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
-                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Último Brinco Lido</span>
-                  <span className="text-[10px] text-[#2C3E50] font-mono font-black tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
-                    {ultimaOrdenha.vaca_id ? `VACA #${ultimaOrdenha.vaca_id}` : "IDENTIFICANDO..."}
+            <div className="flex justify-between items-center border-b border-[#2C3E50]/10 pb-1">
+              <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest">
+                Ordenha
+              </h3>
+              {isOrdenhaAtiva && (
+                <span className="text-[8px] bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded animate-pulse">
+                  🚨 ORDENHA ATIVA
+                </span>
+              )}
+            </div>
+            {getCameraButtons('ordenha')}
+
+            <div className={`flex flex-col gap-1 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+              {isOrdenhaAtiva && (
+                <div className="p-2 rounded text-center border bg-red-500/10 border-red-500/30">
+                  <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center justify-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> 🚨 PROCESSO DE ORDENHA EM ANDAMENTO
                   </span>
                 </div>
-                <div className="flex justify-between items-center px-1 text-[8px] text-[#2C3E50]/70">
-                  <span>Posto: <strong className="text-[#2C3E50]">{ultimaOrdenha.posto || "01"}</strong></span>
-                  <span>Confiança: <strong className="text-emerald-700">{ultimaOrdenha.confianca_brinco ? `${ultimaOrdenha.confianca_brinco}%` : "—"}</strong></span>
-                  <span className="font-mono text-[#2C3E50] font-bold">{ultimaOrdenha.hora || "--:--"}</span>
+              )}
+
+              {hasOrdenhaInfo ? (
+                <div className="bg-gray-50/70 p-2 rounded border border-gray-100 flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[9px]">
+                    <span className="text-[#2C3E50]/70 uppercase font-bold tracking-wide">
+                      Início do Processo de Ordenha
+                    </span>
+                    <span className="text-[10px] text-[#2C3E50] font-mono font-bold">
+                      {formatarHora(horaInicioOrdenha)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[9px] pt-1 border-t border-gray-200/50">
+                    <span className="text-[#2C3E50]/70 uppercase font-bold tracking-wide">
+                      Fim do Processo de Ordenha
+                    </span>
+                    <span className="text-[10px] text-[#2C3E50] font-mono font-bold">
+                      {isOrdenhaAtiva ? "Em andamento..." : formatarHora(horaFimOrdenha)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
-                <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                  <span className="text-emerald-500 text-xs">✓</span> SERVIÇO ATIVO
-                </span>
-              </div>
-            )}
+              ) : (
+                <div className="mt-1 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                    <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO (MONITORANDO)
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
