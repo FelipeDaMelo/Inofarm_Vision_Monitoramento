@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, doc, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { ref, onValue } from "firebase/database";
 import { db, rtdb } from "@/lib/firebase";
 
@@ -25,19 +25,41 @@ const FarmCard = ({
 }) => {
   const [viewingCamera, setViewingCamera] = useState<string | null>(null);
   const nowSecs = Date.now() / 1000;
-  const showConfinamento = modulos.includes('CONFINAMENTO') || !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf;
-  const showMaternidade = modulos.includes('MATERNIDADE') || !!data?.maternidade || !!hbMat;
-  const showOrdenha = modulos.includes('ORDENHA') || !!data?.herdmetrix;
-  const hasVitu = true; // Sempre mostra o controle do VITU 
-  const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
-  const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
-  const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
-  const isOnline = isPainelOnline || isMatOnline || isConfOnline;
 
-  const parto = data?.maternidade?.parto_detectado;
+  // Normalização de Módulos (com fallbacks para detecção automática inteligente)
+  const normalizedModulos = (modulos || []).map(m => String(m).toUpperCase());
+  
+  // Confinamento está ativo se marcado no cadastro OU se tem telemetria/ventilador no banco OU se o agente está rodando
+  const showConfinamento = normalizedModulos.includes('CONFINAMENTO') ||
+    !!data?.confinamento ||
+    !!data?.compost_barn_cama ||
+    !!data?.status_ventiladores ||
+    !!data?.status_rebanho ||
+    !!data?.status_manejo ||
+    !!hbConf ||
+    !!hbPainel?.confinamento;
+
+  // Maternidade está ativa se marcada no cadastro OU se tem eventos/telemetria OU se o agente está rodando
+  const showMaternidade = normalizedModulos.includes('MATERNIDADE') ||
+    !!data?.maternidade ||
+    !!hbMat ||
+    !!hbPainel?.maternidade;
+
+  // Ordenha ativa se marcada no cadastro OU se tem leituras biométricas no banco
+  const chavesOrdenha = Object.keys(data || {}).filter(k => k.startsWith('historico_ordenha')).sort().reverse();
+  const ultimaOrdenha = chavesOrdenha.length > 0 ? data[chavesOrdenha[0]] : data?.historico_ordenha;
+  const showOrdenha = normalizedModulos.includes('ORDENHA') || !!ultimaOrdenha || !!data?.herdmetrix;
+  const hasVitu = true; // Sempre mostra o controle do VITU 
+
+  // Status de Conectividade
+  const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
+  const isMatOnline = (hbMat && (nowSecs - hbMat.ts < 90)) || (isPainelOnline && hbPainel?.maternidade === true);
+  const isConfOnline = (hbConf && (nowSecs - hbConf.ts < 90)) || (isPainelOnline && hbPainel?.confinamento === true);
+  const isOnline = isPainelOnline || isMatOnline || isConfOnline;
 
   const [edgeStatus, setEdgeStatus] = useState<any>(null);
 
+  // Consulta status do Edge via túnel Tailscale
   useEffect(() => {
     if (!href || href === "#") return;
     let baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
@@ -52,8 +74,8 @@ const FarmCard = ({
           headers: { 'X-Api-Key': apiKey }
         });
         if (res.ok) {
-          const data = await res.json();
-          setEdgeStatus(data);
+          const edgeData = await res.json();
+          setEdgeStatus(edgeData);
         }
       } catch (error) {
         setEdgeStatus(null);
@@ -86,10 +108,7 @@ const FarmCard = ({
         body: JSON.stringify({ target, action })
       });
 
-      console.log(`[ACTION] Status HTTP: ${res.status}`);
       const textData = await res.text();
-      console.log(`[ACTION] Resposta Crua:`, textData);
-
       let respData;
       try {
         respData = JSON.parse(textData);
@@ -99,17 +118,13 @@ const FarmCard = ({
 
       if (res.ok) {
         const msg = respData.message || "Comando executado com sucesso!";
-        console.log(`[ACTION] Sucesso:`, msg);
         alert(`✅ Sucesso: ${msg}`);
-        const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
         const statusRes = await fetch(`${baseUrl}/api/status`, { headers: { 'X-Api-Key': apiKey } });
         if (statusRes.ok) setEdgeStatus(await statusRes.json());
       } else {
-        console.error(`[ACTION] Erro retornado:`, respData.error);
         alert(`❌ Erro: ${respData.error}`);
       }
     } catch (e) {
-      console.error(`[ACTION] Falha na requisição:`, e);
       alert("Falha na comunicação com o Painel Local. Verifique se o túnel Tailscale está online.");
     }
   };
@@ -162,8 +177,21 @@ const FarmCard = ({
     baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
   }
-  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
   const painelUrl = baseUrl !== "#" ? `${baseUrl}/` : "#";
+
+  // Extração inteligente de métricas de hardware
+  const cpuPercent = edgeStatus?.cpu ?? hbPainel?.cpu ?? null;
+  const ramPercent = edgeStatus?.ram ?? hbPainel?.ram ?? null;
+  const camerasOk = edgeStatus?.cameras?.filter((c: any) => c.cam_ok).length ?? hbPainel?.cameras_ok ?? null;
+  const camerasTotal = edgeStatus?.cameras?.length ?? hbPainel?.cameras_total ?? null;
+
+  // Extração de dados de confinamento
+  const confinamentoData = data?.confinamento || data?.compost_barn_cama;
+  const dataFinalizacaoCama = confinamentoData?.data_finalizacao;
+  const statusVentiladores = data?.status_ventiladores;
+  const motivoVentiladores = data?.motivo_ventiladores;
+  const horaVentiladores = data?.hora_ventiladores;
+  const alertaManutencaoConfinamento = data?.confinamento_status?.tipo === 'alerta_manutencao' ? data?.confinamento_status : null;
 
   return (
     <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-3 gap-2 h-full">
@@ -173,7 +201,7 @@ const FarmCard = ({
           <h2 className="text-sm font-black text-[#2C3E50] uppercase tracking-widest flex items-center gap-2">
             <span className="text-[#A59D92] text-lg">🏛️</span> {title}
           </h2>
-          <p className="text-[9px] text-[#2C3E50]/50 font-mono uppercase mt-1">ID: {idUnico || title.replace(" ", "").toLowerCase()}</p>
+          <p className="text-[9px] text-[#2C3E50]/50 font-mono uppercase mt-0.5">ID: {idUnico || title.replace(/\s+/g, "").toLowerCase()}</p>
         </div>
         <div className={`px-2 py-1 rounded border flex items-center gap-1.5 ${isOnline ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
           <span className={`text-[8px] font-black uppercase tracking-tight flex items-center gap-1.5 ${isOnline ? 'text-green-500' : 'text-red-500'}`}>
@@ -213,108 +241,130 @@ const FarmCard = ({
         {/* Confinamento */}
         {showConfinamento && (
           <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Confinamento</h3>
-            {getCameraButtons('confinamento')}
-            {data?.compost_barn_cama || data?.status_rebanho || data?.status_manejo ? (
-              <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-                {/* Linha 1: Status do Rebanho (Independente) */}
-                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
-                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">THI</span>
-                  <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded ${data?.status_rebanho?.status_maioria?.includes('PÉ') ? 'bg-emerald-100 text-emerald-700' : data?.status_rebanho?.status_maioria?.includes('DEITADA') ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'}`}>
-                    {data?.status_rebanho?.status_maioria || "CALCULANDO..."}
-                  </span>
-                </div>
+            <div className="flex justify-between items-center border-b border-[#2C3E50]/10 pb-1">
+              <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest">Confinamento</h3>
+              {data?.status_manejo === 'EM ANDAMENTO' && (
+                <span className="text-[8px] bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded animate-pulse">
+                  🚨 MANEJO ATIVO
+                </span>
+              )}
+            </div>
 
-                {/* Linha 2: Monitoramento de Trator (Independente) */}
-                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
-                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Monitoramento Trator</span>
-                  {data?.status_manejo === 'EM ANDAMENTO' ? (
-                    <span className="text-[10px] text-red-600 font-black uppercase tracking-wider animate-pulse border border-red-500/30 bg-red-50 px-2 py-0.5 rounded shadow-sm">
-                      🚨 TRATOR NA CAMA
+            {getCameraButtons('confinamento')}
+
+            <div className={`flex flex-col gap-2 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+              {/* Alerta de Lente Suja / Manutenção se houver */}
+              {alertaManutencaoConfinamento && (
+                <div className="bg-amber-50 border border-amber-200 p-1.5 rounded flex items-start gap-1.5 text-[8px] text-amber-800">
+                  <span className="text-amber-500 font-bold shrink-0">⚠️</span>
+                  <div className="flex flex-col">
+                    <span className="font-bold uppercase tracking-wider">Aviso de Manutenção</span>
+                    <span className="line-clamp-2 text-amber-700/80">{alertaManutencaoConfinamento.mensagem}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Ventiladores Inteligentes */}
+              {statusVentiladores && (
+                <div className="flex flex-col gap-1 bg-gray-50/70 p-1.5 rounded border border-gray-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide flex items-center gap-1">
+                      💨 Ventiladores
                     </span>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[8px] text-[#2C3E50]/50 uppercase font-bold">Último Manejo:</span>
-                      <span className="text-[10px] text-[#2C3E50]/80 font-mono font-bold">
-                        {data?.compost_barn_cama?.data_finalizacao
-                          ? (data.compost_barn_cama.data_finalizacao.includes('T') || data.compost_barn_cama.data_finalizacao.length > 20
-                            ? new Date(data.compost_barn_cama.data_finalizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                            : data.compost_barn_cama.data_finalizacao)
-                          : "--:--"}
-                      </span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded flex items-center gap-1 ${statusVentiladores === 'LIGADO' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-gray-200 text-gray-700'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusVentiladores === 'LIGADO' ? 'bg-emerald-500 led-glow' : 'bg-gray-400'}`}></span>
+                      {statusVentiladores}
+                    </span>
+                  </div>
+                  {motivoVentiladores && (
+                    <div className="flex justify-between items-center text-[8px] text-[#2C3E50]/60 pt-0.5">
+                      <span className="truncate max-w-[170px]" title={motivoVentiladores}>{motivoVentiladores}</span>
+                      {horaVentiladores && <span className="font-mono">{horaVentiladores.includes('às') ? horaVentiladores.split('às')[1].trim() : horaVentiladores}</span>}
                     </div>
                   )}
                 </div>
-                {!isOnline && (
-                  <div className="text-[8px] text-center text-red-500 font-bold uppercase tracking-widest mt-[-4px]">
-                    (Dados Desatualizados - Fazenda Offline)
+              )}
+
+              {/* Manejo da Cama / Trator */}
+              <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
+                <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Manejo da Cama</span>
+                {data?.status_manejo === 'EM ANDAMENTO' ? (
+                  <span className="text-[9px] text-red-600 font-black uppercase tracking-wider animate-pulse border border-red-500/30 bg-red-50 px-2 py-0.5 rounded">
+                    🚨 TRATOR NA CAMA
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[8px] text-[#2C3E50]/50 uppercase font-bold">Último:</span>
+                    <span className="text-[10px] text-[#2C3E50]/80 font-mono font-bold">
+                      {dataFinalizacaoCama
+                        ? (dataFinalizacaoCama.includes('T') || dataFinalizacaoCama.length > 20
+                          ? new Date(dataFinalizacaoCama).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                          : dataFinalizacaoCama)
+                        : "--:--"}
+                    </span>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
-                <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                  <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
-                </span>
-              </div>
-            )}
+
+              {/* Status do Rebanho / THI se disponível */}
+              {data?.status_rebanho && (
+                <div className="flex justify-between items-center bg-gray-50/50 p-1.5 rounded border border-gray-100">
+                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Rebanho / THI</span>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${data?.status_rebanho?.status_maioria?.includes('PÉ') ? 'bg-emerald-100 text-emerald-700' : data?.status_rebanho?.status_maioria?.includes('DEITADA') ? 'bg-amber-100 text-amber-700' : 'bg-gray-200 text-gray-600'}`}>
+                    {data?.status_rebanho?.status_maioria || "CALCULANDO..."}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* Maternidade */}
         {showMaternidade && (
           <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Maternidade</h3>
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1">Maternidade</h3>
             {getCameraButtons('maternidade')}
-            {data?.maternidade ? (
-              <div className={`mt-2 p-2 rounded text-center border ${data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/5 border-green-500/10'}`}>
-                {data.maternidade.evento?.includes('NASCIMENTO') || data.maternidade.evento?.includes('PARTO') || data.maternidade.evento?.includes('DISTOCIA') ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA: {data.maternidade.evento?.includes('DISTOCIA') ? 'DISTOCIA' : 'PARTO'}
-                    </span>
-                    <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
-                    {data.maternidade.evento && (
-                      <span className="text-[8px] text-red-600 font-bold mt-1">{(data.maternidade.evento).replace(/_/g, ' ')}</span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                    <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
+            {data?.maternidade?.evento?.includes('NASCIMENTO') || data?.maternidade?.evento?.includes('PARTO') || data?.maternidade?.evento?.includes('DISTOCIA') ? (
+              <div className="mt-2 p-2 rounded text-center border bg-red-500/10 border-red-500/30">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> ALERTA: {data.maternidade.evento?.includes('DISTOCIA') ? 'DISTOCIA' : 'PARTO'}
                   </span>
-                )}
+                  <span className="text-[8px] text-red-400/70">{data.maternidade.hora_da_captura}</span>
+                  {data.maternidade.evento && (
+                    <span className="text-[8px] text-red-600 font-bold mt-1">{(data.maternidade.evento).replace(/_/g, ' ')}</span>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
                 <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                  <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO
+                  <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO (MONITORANDO)
                 </span>
               </div>
             )}
           </div>
         )}
 
-        {/* Ordenha / HerdMetrix */}
+        {/* Ordenha / Biometria e HerdMetrix */}
         {showOrdenha && (
           <div className="bg-white p-2 rounded-lg border border-[#2C3E50]/5 flex flex-col gap-1.5 shadow-sm">
-            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1"> Ordenha (HerdMetrix)</h3>
-            {data?.herdmetrix?.ultimo_sync ? (
-              <div className={`flex flex-col gap-3 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100 mt-1">
-                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Último Arquivo</span>
-                  <span className="text-[10px] text-[#2C3E50] font-mono font-black tracking-widest">
-                    {data.herdmetrix.ultimo_sync.includes('T') ? new Date(data.herdmetrix.ultimo_sync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : data.herdmetrix.ultimo_sync}
+            <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest border-b border-[#2C3E50]/10 pb-1">
+              Ordenha (Biometria & Fluxo)
+            </h3>
+            {ultimaOrdenha ? (
+              <div className={`flex flex-col gap-2 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
+                <div className="flex justify-between items-center bg-gray-50/50 p-2 rounded border border-gray-100">
+                  <span className="text-[9px] text-[#2C3E50]/70 uppercase font-bold tracking-wide">Último Brinco Lido</span>
+                  <span className="text-[10px] text-[#2C3E50] font-mono font-black tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">
+                    {ultimaOrdenha.vaca_id ? `VACA #${ultimaOrdenha.vaca_id}` : "IDENTIFICANDO..."}
                   </span>
                 </div>
-                {data.herdmetrix.erros && data.herdmetrix.erros.length > 0 && (
-                  <div className="flex justify-between items-center bg-red-50 p-2 rounded border border-red-200 mt-1">
-                    <span className="text-[9px] text-red-600 uppercase font-bold tracking-wide flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                      FALHA RECENTE
-                    </span>
-                    <span className="text-[8px] text-red-700 font-bold truncate max-w-[100px]">{data.herdmetrix.erros[0]}</span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center px-1 text-[8px] text-[#2C3E50]/70">
+                  <span>Posto: <strong className="text-[#2C3E50]">{ultimaOrdenha.posto || "01"}</strong></span>
+                  <span>Confiança: <strong className="text-emerald-700">{ultimaOrdenha.confianca_brinco ? `${ultimaOrdenha.confianca_brinco}%` : "—"}</strong></span>
+                  <span className="font-mono text-[#2C3E50] font-bold">{ultimaOrdenha.hora || "--:--"}</span>
+                </div>
               </div>
             ) : (
               <div className="mt-2 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
@@ -334,24 +384,35 @@ const FarmCard = ({
           <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
-              {edgeStatus && (
-                <div className="flex items-center gap-2 text-[8px] font-black font-mono">
-                  <span className={`${edgeStatus.cpu > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>CPU: {edgeStatus.cpu}%</span>
-                  <span className={`${edgeStatus.ram > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>RAM: {edgeStatus.ram}%</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-[8px] font-black font-mono">
+                {camerasTotal !== null && (
+                  <span className="text-blue-600 bg-blue-50 border border-blue-200 px-1 rounded">
+                    CAM: {camerasOk ?? 0}/{camerasTotal}
+                  </span>
+                )}
+                {cpuPercent !== null && (
+                  <span className={`${cpuPercent > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>
+                    CPU: {Math.round(cpuPercent)}%
+                  </span>
+                )}
+                {ramPercent !== null && (
+                  <span className={`${ramPercent > 80 ? 'text-red-500' : 'text-[#2C3E50]/60'}`}>
+                    RAM: {Math.round(ramPercent)}%
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Maternidade */}
             {showMaternidade && (
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade || hbPainel?.maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
                   MATERNIDADE
                 </span>
                 <div className="flex gap-1">
-                  <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-                  <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                  <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
+                  <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
                 </div>
               </div>
             )}
@@ -360,12 +421,12 @@ const FarmCard = ({
             {showConfinamento && (
               <div className="flex items-center justify-between gap-2 mt-1">
                 <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento || hbPainel?.confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
                   CONFINAMENTO
                 </span>
                 <div className="flex gap-1">
-                  <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-                  <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                  <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
+                  <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
                 </div>
               </div>
             )}
@@ -378,8 +439,8 @@ const FarmCard = ({
                   FUNCIONÁRIO DIGITAL VITU
                 </span>
                 <div className="flex gap-1">
-                  <button disabled={edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_vitu ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>▶ Iniciar</button>
-                  <button disabled={!edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_vitu ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase`}>⏹ Parar</button>
+                  <button disabled={edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_vitu ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
+                  <button disabled={!edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_vitu ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
                 </div>
               </div>
             )}
@@ -387,7 +448,7 @@ const FarmCard = ({
         )}
 
         <div className="flex gap-2 w-full">
-          <a href={painelUrl} target="_blank" className="flex-1 flex">
+          <a href={painelUrl} target="_blank" rel="noreferrer" className="flex-1 flex">
             <button className="w-full py-2 bg-[#2C3E50] text-[#A59D92] font-black text-[9px] uppercase tracking-widest rounded transition-all hover:bg-[#1a252f] cursor-pointer shadow-md flex items-center justify-center gap-1.5">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                 <rect width="20" height="14" x="2" y="3" rx="2" />
@@ -422,9 +483,9 @@ const FarmCard = ({
         <div className="relative w-full">
           <input
             type="file"
-            accept=".py"
+            accept=".py,.zip"
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            title="Fazer upload de nova versão da IA"
+            title="Fazer upload de nova versão da IA (.py) ou Interface Web (.zip)"
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -434,8 +495,40 @@ const FarmCard = ({
                 return;
               }
 
+              let baseU = href.endsWith('/') ? href.slice(0, -1) : href;
+              if (!baseU.startsWith('http')) baseU = 'https://' + baseU;
+              const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
+
+              // Caso 1: Upload do Frontend Web Compilado (.zip)
+              if (file.name.endsWith('.zip')) {
+                if (confirm(`Atenção: Isso vai atualizar o Frontend Web local (public/) da fazenda ${title} com o arquivo '${file.name}'. Confirmar envio?`)) {
+                  try {
+                    alert(`Enviando ${file.name} para o servidor local da fazenda...`);
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    const res = await fetch(`${baseU}/api/update-public-zip`, {
+                      method: 'POST',
+                      headers: { 'X-Api-Key': apiKey },
+                      body: formData,
+                    });
+
+                    const respD = await res.json().catch(() => ({}));
+                    if (res.ok) {
+                      alert(`✅ Sucesso na Fazenda ${title}: \n\n${respD.message || 'Interface Web atualizada!'}`);
+                    } else {
+                      alert(`❌ Erro da Fazenda: ${respD.error || 'Falha ao atualizar interface'}`);
+                    }
+                  } catch (error) {
+                    alert(`🚨 Falha de Conexão com a fazenda: ${error}`);
+                  }
+                }
+                e.target.value = '';
+                return;
+              }
+
+              // Caso 2: Upload de Scripts Python de IA (.py)
               if (confirm(`Atenção: Isso vai enviar o arquivo '${file.name}' para a fazenda ${title}. Confirmar atualização OTA?`)) {
-                // Detecta automaticamente a subpasta correta pelo nome do arquivo
                 const pastasPorArquivo: Record<string, string> = {
                   'agente_maternidade_hibrido.py': 'maternidade',
                   'monitoramento_confinamento.py': 'confinamento',
@@ -446,7 +539,6 @@ const FarmCard = ({
                 const targetPath = prompt(`Para qual subpasta o arquivo '${file.name}' deve ir?\n(Detectado automaticamente: '${defaultPath || 'raiz'}')`, defaultPath);
 
                 if (targetPath === null) {
-                  // Usuário cancelou o prompt
                   e.target.value = '';
                   return;
                 }
@@ -456,54 +548,40 @@ const FarmCard = ({
                   formData.append("file", file);
                   formData.append("target_path", targetPath);
 
-                  // Ajuste de URL garantindo que não duplica a barra
-                  let baseUrl = href.endsWith('/') ? href.slice(0, -1) : href;
-                  if (!baseUrl.startsWith('http')) baseUrl = 'https://' + baseUrl;
-
-                  console.log(`[OTA] Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na URL: ${baseUrl}/api/update`);
                   alert(`Enviando ${file.name} para a subpasta '${targetPath || 'raiz'}' na fazenda...`);
 
-                  const apiKey = process.env.NEXT_PUBLIC_EDGE_API_KEY || "";
-                  const res = await fetch(`${baseUrl}/api/update`, {
+                  const res = await fetch(`${baseU}/api/update`, {
                     method: 'POST',
                     headers: { 'X-Api-Key': apiKey },
                     body: formData,
                   });
 
-                  console.log(`[OTA] Status HTTP: ${res.status}`);
                   const textData = await res.text();
-                  console.log(`[OTA] Resposta Crua:`, textData);
-
-                  let data;
+                  let respD;
                   try {
-                    data = JSON.parse(textData);
-                  } catch (e) {
-                    data = { error: "Resposta do servidor não é um JSON válido" };
+                    respD = JSON.parse(textData);
+                  } catch (err) {
+                    respD = { error: "Resposta do servidor não é um JSON válido" };
                   }
 
                   if (res.ok) {
-                    console.log(`[OTA] Sucesso:`, data.message);
-                    alert(`✅ Sucesso na Fazenda ${title}: \n\n${data.message}`);
+                    alert(`✅ Sucesso na Fazenda ${title}: \n\n${respD.message}`);
                   } else {
-                    console.error(`[OTA] Erro retornado:`, data.error);
-                    alert(`❌ Erro da Fazenda: ${data.error || 'Erro desconhecido'}`);
+                    alert(`❌ Erro da Fazenda: ${respD.error || 'Erro desconhecido'}`);
                   }
                 } catch (error) {
-                  console.error(`[OTA] Falha de conexão:`, error);
                   alert(`🚨 Falha de Conexão com o túnel da fazenda: ${error}`);
-                } finally {
-                  e.target.value = ''; // Reseta o input para permitir enviar o mesmo arquivo novamente
                 }
               }
-              // Limpa o input
               e.target.value = '';
             }}
           />
-          <button className="w-full py-2 bg-emerald-600/10 text-emerald-600 border border-emerald-600/30 font-black text-[9px] uppercase tracking-widest rounded transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2">
+          <button className="w-full py-2 bg-emerald-600/10 text-emerald-600 border border-emerald-600/30 font-black text-[9px] uppercase tracking-widest rounded transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
             ENVIAR ATUALIZAÇÃO (OTA)
           </button>
         </div>
+
       </div>
 
       {/* Modal de Câmera */}
@@ -515,7 +593,7 @@ const FarmCard = ({
                 <span className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span>
                 {viewingCamera.replace(/_/g, ' ')} - {title}
               </h3>
-              <button onClick={() => setViewingCamera(null)} className="text-[#2C3E50]/50 hover:text-red-500 transition-colors">
+              <button onClick={() => setViewingCamera(null)} className="text-[#2C3E50]/50 hover:text-red-500 transition-colors cursor-pointer">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
@@ -545,7 +623,6 @@ const FarmCard = ({
 export default function CentralDashboard() {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [fazendas, setFazendas] = useState<any[]>([]);
-  const [telemetry, setTelemetry] = useState<Record<string, any>>({});
   const [heartbeats, setHeartbeats] = useState<Record<string, any>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [filterConexao, setFilterConexao] = useState("ALL");
@@ -564,56 +641,43 @@ export default function CentralDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Busca Fazendas Registradas
+  // Busca Fazendas Registradas (Single Listener em tempo real, trazendo todo o payload)
   useEffect(() => {
     if (!db) return;
     const unsub = onSnapshot(collection(db, "fazendas_registradas"), (snap) => {
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const lista = snap.docs.map(d => {
+        const dData = d.data();
+        const fid = dData.idUnico || d.id;
+        return { id: d.id, idUnico: fid, ...dData };
+      });
       setFazendas(lista);
     });
     return () => unsub();
   }, []);
 
-  // Firestore Sincronização Dinâmica (Telemetria)
-  useEffect(() => {
-    if (!db) return;
-    const unsubs: any[] = [];
-
-    fazendas.forEach(f => {
-      if (!f.idUnico) return;
-
-      const docRef = doc(db!, "fazendas_registradas", f.idUnico);
-      const u = onSnapshot(docRef, (snap) => {
-        if (snap.exists()) {
-          setTelemetry(prev => ({ ...prev, [f.idUnico]: snap.data() }));
-        }
-      });
-      unsubs.push(u);
-    });
-
-    return () => unsubs.forEach(u => u());
-  }, [fazendas]);
-
   // Realtime Database Heartbeat Sincronização Dinâmica
   useEffect(() => {
     const validRtdb = rtdb;
-    if (!validRtdb) return;
+    if (!validRtdb || fazendas.length === 0) return;
     const unsubs: any[] = [];
 
     fazendas.forEach(f => {
-      if (!f.idUnico) return;
-      const refMat = ref(validRtdb, `heartbeat/${f.idUnico}/maternidade`);
-      const u1 = onValue(refMat, (snap) => {
-        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_mat`]: snap.val() }));
+      const fid = f.idUnico || f.id;
+      if (!fid) return;
+
+      const refPainel = ref(validRtdb, `heartbeat/${fid}/painel`);
+      const u1 = onValue(refPainel, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${fid}_painel`]: snap.val() }));
       });
-      const refConf = ref(validRtdb, `heartbeat/${f.idUnico}/confinamento`);
-      const u2 = onValue(refConf, (snap) => {
-        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_conf`]: snap.val() }));
+      const refMat = ref(validRtdb, `heartbeat/${fid}/maternidade`);
+      const u2 = onValue(refMat, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${fid}_mat`]: snap.val() }));
       });
-      const refPainel = ref(validRtdb, `heartbeat/${f.idUnico}/painel`);
-      const u3 = onValue(refPainel, (snap) => {
-        setHeartbeats(prev => ({ ...prev, [`${f.idUnico}_painel`]: snap.val() }));
+      const refConf = ref(validRtdb, `heartbeat/${fid}/confinamento`);
+      const u3 = onValue(refConf, (snap) => {
+        setHeartbeats(prev => ({ ...prev, [`${fid}_conf`]: snap.val() }));
       });
+
       unsubs.push(u1, u2, u3);
     });
 
@@ -622,6 +686,8 @@ export default function CentralDashboard() {
 
   // Aplicando todos os filtros
   const fazendasFiltradas = fazendas.filter(f => {
+    const fid = f.idUnico || f.id;
+
     // 1. Busca por Texto
     const s = searchTerm.toLowerCase();
     const matchText = (f.nome || "").toLowerCase().includes(s) ||
@@ -630,26 +696,25 @@ export default function CentralDashboard() {
     if (!matchText) return false;
 
     // Dados de Status para filtros avançados
-    const data = telemetry[f.idUnico];
-    const hbMat = heartbeats[`${f.idUnico}_mat`];
-    const hbConf = heartbeats[`${f.idUnico}_conf`];
-    const hbPainel = heartbeats[`${f.idUnico}_painel`];
+    const hbMat = heartbeats[`${fid}_mat`];
+    const hbConf = heartbeats[`${fid}_conf`];
+    const hbPainel = heartbeats[`${fid}_painel`];
 
     const nowSecs = Date.now() / 1000;
-    const isMatOnline = hbMat && (nowSecs - hbMat.ts < 90);
-    const isConfOnline = hbConf && (nowSecs - hbConf.ts < 90);
     const isPainelOnline = hbPainel && (nowSecs - hbPainel.ts < 720) && hbPainel.status !== 'offline';
+    const isMatOnline = (hbMat && (nowSecs - hbMat.ts < 90)) || (isPainelOnline && hbPainel?.maternidade === true);
+    const isConfOnline = (hbConf && (nowSecs - hbConf.ts < 90)) || (isPainelOnline && hbPainel?.confinamento === true);
     const isOnline = isPainelOnline || isMatOnline || isConfOnline;
-    const isIaRunning = isMatOnline || isConfOnline;
+    const isIaRunning = isMatOnline || isConfOnline || !!hbPainel?.confinamento || !!hbPainel?.maternidade;
 
-    const hasAlertaMaternidade = data?.maternidade?.evento?.includes('NASCIMENTO') || data?.maternidade?.evento?.includes('PARTO');
-    const hasAlertaConfinamento = data?.status_manejo === 'EM ANDAMENTO';
+    const hasAlertaMaternidade = f.maternidade?.evento?.includes('NASCIMENTO') || f.maternidade?.evento?.includes('PARTO') || f.maternidade?.evento?.includes('DISTOCIA');
+    const hasAlertaConfinamento = f.status_manejo === 'EM ANDAMENTO' || f.confinamento_status?.tipo === 'alerta_manutencao';
     const hasAlerta = hasAlertaMaternidade || hasAlertaConfinamento;
 
-    const fModulos = (f.modulos || []).map((m: string) => m.toUpperCase());
-    const hasMaternidade = !!data?.maternidade || !!hbMat || fModulos.includes("MATERNIDADE");
-    const hasConfinamento = !!data?.compost_barn_cama || !!data?.status_rebanho || !!data?.status_manejo || !!hbConf || fModulos.includes("CONFINAMENTO");
-    const hasOrdenha = fModulos.includes("ORDENHA");
+    const fModulos = (f.modulos || []).map((m: string) => String(m).toUpperCase());
+    const hasMaternidade = fModulos.includes("MATERNIDADE") || !!f.maternidade || !!hbMat || !!hbPainel?.maternidade;
+    const hasConfinamento = fModulos.includes("CONFINAMENTO") || !!f.confinamento || !!f.compost_barn_cama || !!f.status_ventiladores || !!hbConf || !!hbPainel?.confinamento;
+    const hasOrdenha = fModulos.includes("ORDENHA") || Object.keys(f).some(k => k.startsWith('historico_ordenha'));
     const hasSalaEspera = fModulos.includes("SALA_ESPERA");
     const hasQuimicos = fModulos.includes("QUIMICOS");
     const hasVitu = fModulos.includes("VITU");
@@ -659,8 +724,8 @@ export default function CentralDashboard() {
     if (filterConexao === 'OFFLINE' && isOnline) return false;
 
     // 3. Filtro IA
-    if (filterIA === 'RUNNING' && isIaRunning) return false;
-    if (filterIA === 'STOPPED' && !isIaRunning) return false;
+    if (filterIA === 'RUNNING' && !isIaRunning) return false;
+    if (filterIA === 'STOPPED' && isIaRunning) return false;
 
     // 4. Filtro Alertas
     if (filterAlertas === 'COM_ALERTAS' && !hasAlerta) return false;
@@ -789,19 +854,19 @@ export default function CentralDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 auto-rows-fr pb-6">
               {fazendasFiltradas.map(f => {
+                const fid = f.idUnico || f.id;
                 const princ = f.contatos?.find((c: any) => c.isPrincipal) || f.contatos?.[0];
-                const hbMat = heartbeats[`${f.idUnico}_mat`];
-                const hbConf = heartbeats[`${f.idUnico}_conf`];
-                const hbPainel = heartbeats[`${f.idUnico}_painel`];
-                const data = telemetry[f.idUnico];
+                const hbMat = heartbeats[`${fid}_mat`];
+                const hbConf = heartbeats[`${fid}_conf`];
+                const hbPainel = heartbeats[`${fid}_painel`];
                 const urlFunnel = f.urlLocal ? f.urlLocal : "#";
 
                 return (
                   <FarmCard
-                    key={f.idUnico}
-                    idUnico={f.idUnico}
+                    key={fid}
+                    idUnico={fid}
                     title={f.nome}
-                    data={data}
+                    data={f}
                     href={urlFunnel}
                     hbMat={hbMat}
                     hbConf={hbConf}
@@ -811,7 +876,7 @@ export default function CentralDashboard() {
                     cidade={f.cidade}
                     anydeskId={f.anydeskId}
                     anydeskPass={f.anydeskPass}
-                    modulos={(f.modulos || []).map((m: string) => m.toUpperCase())}
+                    modulos={(f.modulos || []).map((m: string) => String(m).toUpperCase())}
                   />
                 );
               })}
