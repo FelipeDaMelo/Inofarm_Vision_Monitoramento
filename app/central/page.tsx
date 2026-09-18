@@ -814,6 +814,27 @@ export default function CentralDashboard() {
         isExpiredF = true;
       }
     }
+
+    const stMatF = f.maternidade_status;
+    let isExpiredMatF = false;
+    if (stMatF) {
+      let alertTimeF = 0;
+      if (typeof stMatF.timestamp === "number") {
+        alertTimeF = stMatF.timestamp > 1e11 ? stMatF.timestamp / 1000 : stMatF.timestamp;
+      } else if (stMatF.ultima_atualizacao?.seconds) {
+        alertTimeF = stMatF.ultima_atualizacao.seconds;
+      } else if (typeof stMatF.ultima_atualizacao?.toDate === "function") {
+        alertTimeF = stMatF.ultima_atualizacao.toDate().getTime() / 1000;
+      } else if (typeof stMatF.ultima_atualizacao === "string") {
+        const parsedF = new Date(stMatF.ultima_atualizacao).getTime();
+        if (!isNaN(parsedF)) alertTimeF = parsedF / 1000;
+      }
+      if (alertTimeF === 0 || (nowSecs - alertTimeF > 43200)) {
+        isExpiredMatF = true;
+      }
+    }
+
+    const hasAlertaMaternidade = f.status === 'EM_ANDAMENTO' || (f.maternidade_status?.tipo === 'alerta_manutencao' && !isExpiredMatF);
     const hasAlertaOrdenha = f.status_sala?.status === 'EM_ANDAMENTO' || f.status_ordenha === 'EM ANDAMENTO' || f.ordenha?.status === 'EM_ANDAMENTO';
     const hasAlertaConfinamento = f.status_manejo === 'EM ANDAMENTO' || (f.confinamento_status?.tipo === 'alerta_manutencao' && !isExpiredF);
     const hasAlerta = hasAlertaMaternidade || hasAlertaConfinamento || hasAlertaOrdenha;
