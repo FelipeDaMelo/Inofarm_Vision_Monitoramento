@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, deleteField } from "firebase/firestore";
 import { ref, onValue } from "firebase/database";
 import { db, rtdb } from "@/lib/firebase";
 
@@ -45,15 +45,46 @@ const FarmCard = ({
     !!hbMat ||
     !!hbPainel?.maternidade;
 
-  // Ordenha: início e fim do processo de ordenha
+  // Ordenha: início e fim do processo de ordenha via offline_queue (STATUS_SALA -> status_sala)
+  const statusSala = data?.status_sala;
+  const isSalaEmAndamento = statusSala?.status === 'EM_ANDAMENTO';
+  const isSalaOciosa = statusSala?.status === 'OCIOSO';
+
+  const formatarTimestampParaHora = (ts: any) => {
+    if (!ts) return null;
+    let ms = 0;
+    if (typeof ts === 'number') {
+      ms = ts > 1e11 ? ts : ts * 1000;
+    } else if (ts?.seconds) {
+      ms = ts.seconds * 1000;
+    } else if (typeof ts === 'string') {
+      const parsed = new Date(ts).getTime();
+      if (!isNaN(parsed)) ms = parsed;
+      else {
+        const num = Number(ts);
+        if (!isNaN(num)) ms = num > 1e11 ? num : num * 1000;
+      }
+    }
+    if (!ms) return null;
+    const d = new Date(ms);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
   const chavesOrdenha = Object.keys(data || {}).filter(k => k.startsWith('historico_ordenha')).sort().reverse();
   const ultimaOrdenha = chavesOrdenha.length > 0 ? data[chavesOrdenha[0]] : data?.historico_ordenha;
   const ordenhaData = data?.ordenha;
-  const horaInicioOrdenha = ordenhaData?.hora_inicio || data?.inicio_ordenha || ordenhaData?.inicio || (data?.historico_ordenha_2026_09_13 ? "04:54" : null) || null;
-  const horaFimOrdenha = ordenhaData?.hora_fim || data?.fim_ordenha || ordenhaData?.fim || (ultimaOrdenha?.hora ? ultimaOrdenha.hora.slice(0, 5) : null) || null;
-  const isOrdenhaAtiva = data?.status_ordenha === 'EM ANDAMENTO' || ordenhaData?.status === 'EM_ANDAMENTO';
+  const horaInicioSala = statusSala?.inicio_timestamp
+    ? formatarTimestampParaHora(statusSala.inicio_timestamp)
+    : statusSala?.hora_inicio || (statusSala?.timestamp && isSalaEmAndamento ? formatarTimestampParaHora(statusSala.timestamp) : null);
+  const horaFimSala = isSalaOciosa && statusSala?.timestamp ? formatarTimestampParaHora(statusSala.timestamp) : (statusSala?.fim_timestamp ? formatarTimestampParaHora(statusSala.fim_timestamp) : null);
+
+  const horaInicioOrdenha = horaInicioSala || ordenhaData?.hora_inicio || data?.inicio_ordenha || ordenhaData?.inicio || (data?.historico_ordenha_2026_09_13 ? "04:54" : null) || null;
+  const horaFimOrdenha = horaFimSala || ordenhaData?.hora_fim || data?.fim_ordenha || ordenhaData?.fim || (ultimaOrdenha?.hora ? ultimaOrdenha.hora.slice(0, 5) : null) || null;
+  const isOrdenhaAtiva = isSalaEmAndamento || data?.status_ordenha === 'EM ANDAMENTO' || ordenhaData?.status === 'EM_ANDAMENTO';
   const hasOrdenhaInfo = !!(horaInicioOrdenha || horaFimOrdenha);
-  const showOrdenha = normalizedModulos.includes('ORDENHA') || !!ultimaOrdenha || hasOrdenhaInfo;
+  const showOrdenha = normalizedModulos.includes('ORDENHA') || !!statusSala || !!ultimaOrdenha || hasOrdenhaInfo;
   const hasVitu = true; // Sempre mostra o controle do VITU
 
   const formatarHora = (h?: string | null) => {
@@ -196,13 +227,53 @@ const FarmCard = ({
   const camerasOk = edgeStatus?.cameras?.filter((c: any) => c.cam_ok).length ?? hbPainel?.cameras_ok ?? null;
   const camerasTotal = edgeStatus?.cameras?.length ?? hbPainel?.cameras_total ?? null;
 
-  // Extração de dados de confinamento
   const confinamentoData = data?.confinamento || data?.compost_barn_cama;
   const dataFinalizacaoCama = confinamentoData?.data_finalizacao;
   const statusVentiladores = data?.status_ventiladores;
   const motivoVentiladores = data?.motivo_ventiladores;
   const horaVentiladores = data?.hora_ventiladores;
-  const alertaManutencaoConfinamento = data?.confinamento_status?.tipo === 'alerta_manutencao' ? data?.confinamento_status : null;
+
+  const [dispensandoManutencao, setDispensandoManutencao] = useState(false);
+
+  const handleDispensarManutencao = async () => {
+    if (!db) return;
+    const farmDocId = data?.id || idUnico;
+    if (!farmDocId) return;
+    try {
+      setDispensandoManutencao(true);
+      await updateDoc(doc(db, "fazendas_registradas", farmDocId), {
+        confinamento_status: deleteField(),
+        maternidade_status: deleteField(),
+      });
+    } catch (err) {
+      console.error("Erro ao dispensar aviso de manutenção:", err);
+    } finally {
+      setDispensandoManutencao(false);
+    }
+  };
+
+  // Alerta de manutenção com expiração inteligente (expira após 12 horas para não ficar estático na tela)
+  const statusAlerta = data?.confinamento_status;
+  let isAlertExpired = false;
+  if (statusAlerta) {
+    let alertTimeSecs = 0;
+    if (typeof statusAlerta.timestamp === "number") {
+      alertTimeSecs = statusAlerta.timestamp > 1e11 ? statusAlerta.timestamp / 1000 : statusAlerta.timestamp;
+    } else if (statusAlerta.ultima_atualizacao?.seconds) {
+      alertTimeSecs = statusAlerta.ultima_atualizacao.seconds;
+    } else if (typeof statusAlerta.ultima_atualizacao?.toDate === "function") {
+      alertTimeSecs = statusAlerta.ultima_atualizacao.toDate().getTime() / 1000;
+    } else if (typeof statusAlerta.ultima_atualizacao === "string") {
+      const parsed = new Date(statusAlerta.ultima_atualizacao).getTime();
+      if (!isNaN(parsed)) alertTimeSecs = parsed / 1000;
+    }
+    // Se o alerta tem mais de 12 horas ou não tem timestamp válido, não deve travar a tela
+    if (alertTimeSecs === 0 || (nowSecs - alertTimeSecs > 43200)) {
+      isAlertExpired = true;
+    }
+  }
+
+  const alertaManutencaoConfinamento = (statusAlerta?.tipo === 'alerta_manutencao' && !isAlertExpired) ? statusAlerta : null;
 
   return (
     <div className="bg-white/80 rounded-xl shadow-md border border-[#2C3E50]/10 flex flex-col p-3 gap-2 h-full">
@@ -256,7 +327,7 @@ const FarmCard = ({
               <h3 className="text-[9px] font-black uppercase text-[#2C3E50] tracking-widest">Confinamento</h3>
               {data?.status_manejo === 'EM ANDAMENTO' && (
                 <span className="text-[8px] bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded animate-pulse">
-                  🚨 MANEJO ATIVO
+                  MANEJO ATIVO
                 </span>
               )}
             </div>
@@ -264,14 +335,28 @@ const FarmCard = ({
             {getCameraButtons('confinamento')}
 
             <div className={`flex flex-col gap-1 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-              {/* Alerta de Lente Suja / Manutenção se houver */}
+              {/* Alerta de Lente Suja / Manutenção se houver e não estiver expirado */}
               {alertaManutencaoConfinamento && (
-                <div className="bg-amber-50 border border-amber-200 p-1.5 rounded flex items-start gap-1.5 text-[8px] text-amber-800 mb-1">
-                  <span className="text-amber-500 font-bold shrink-0">⚠️</span>
-                  <div className="flex flex-col">
-                    <span className="font-bold uppercase tracking-wider">Aviso de Manutenção</span>
-                    <span className="line-clamp-2 text-amber-700/80">{alertaManutencaoConfinamento.mensagem}</span>
+                <div className="bg-amber-50 border border-amber-200 p-2 rounded flex items-start justify-between gap-1.5 text-[8px] text-amber-800 mb-1 shadow-sm">
+                  <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                    <span className="text-amber-500 font-bold shrink-0 text-[10px]">⚠️</span>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="font-bold uppercase tracking-wider text-amber-900">Aviso de Manutenção</span>
+                      <span className="line-clamp-3 text-amber-700/90 mt-0.5 leading-tight">
+                        {alertaManutencaoConfinamento.mensagem || "Possível sujeira, teia de aranha ou obstrução identificada na lente da câmera."}
+                      </span>
+                    </div>
                   </div>
+                  <button
+                    onClick={handleDispensarManutencao}
+                    disabled={dispensandoManutencao}
+                    title="Dispensar este aviso"
+                    className="text-amber-700/60 hover:text-amber-900 hover:bg-amber-200/50 p-1 rounded font-black cursor-pointer transition-all shrink-0 ml-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               )}
 
@@ -280,7 +365,7 @@ const FarmCard = ({
                 <div className="mt-1 p-2 rounded text-center border bg-red-500/10 border-red-500/30">
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> 🚨 TRATOR NA CAMA (MANEJO ATIVO)
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> TRATOR NA CAMA (MANEJO ATIVO)
                     </span>
                   </div>
                 </div>
@@ -331,22 +416,31 @@ const FarmCard = ({
               </h3>
               {isOrdenhaAtiva && (
                 <span className="text-[8px] bg-red-100 text-red-600 font-black px-1.5 py-0.5 rounded animate-pulse">
-                  🚨 ORDENHA ATIVA
+                  ORDENHA ATIVA
                 </span>
               )}
             </div>
             {getCameraButtons('ordenha')}
 
             <div className={`flex flex-col gap-1 mt-1 ${!isOnline ? 'opacity-60 grayscale' : ''}`}>
-              {isOrdenhaAtiva && (
-                <div className="p-2 rounded text-center border bg-red-500/10 border-red-500/30">
-                  <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center justify-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> 🚨 PROCESSO DE ORDENHA EM ANDAMENTO
+              {/* Evento Ativo vs Tudo Tranquilo (padrao Maternidade e Confinamento) */}
+              {isOrdenhaAtiva ? (
+                <div className="mt-1 p-2 rounded text-center border bg-red-500/10 border-red-500/30">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center justify-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full led-glow"></div> PROCESSO DE ORDENHA EM ANDAMENTO
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-1 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
+                    <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO (MONITORANDO)
                   </span>
                 </div>
               )}
 
-              {hasOrdenhaInfo ? (
+              {hasOrdenhaInfo && (
                 <div className="bg-gray-50/70 p-2 rounded border border-gray-100 flex flex-col gap-1.5">
                   <div className="flex justify-between items-center text-[9px]">
                     <span className="text-[#2C3E50]/70 uppercase font-bold tracking-wide">
@@ -364,12 +458,6 @@ const FarmCard = ({
                       {isOrdenhaAtiva ? "Em andamento..." : formatarHora(horaFimOrdenha)}
                     </span>
                   </div>
-                </div>
-              ) : (
-                <div className="mt-1 p-2 rounded text-center border bg-green-500/5 border-green-500/10">
-                  <span className="text-[9px] font-bold text-emerald-600 uppercase flex items-center justify-center gap-1">
-                    <span className="text-emerald-500 text-xs">✓</span> TUDO TRANQUILO (MONITORANDO)
-                  </span>
                 </div>
               )}
             </div>
@@ -707,14 +795,33 @@ export default function CentralDashboard() {
     const isOnline = isPainelOnline || isMatOnline || isConfOnline;
     const isIaRunning = isMatOnline || isConfOnline || !!hbPainel?.confinamento || !!hbPainel?.maternidade;
 
-    const hasAlertaMaternidade = f.maternidade?.evento?.includes('NASCIMENTO') || f.maternidade?.evento?.includes('PARTO') || f.maternidade?.evento?.includes('DISTOCIA');
-    const hasAlertaConfinamento = f.status_manejo === 'EM ANDAMENTO' || f.confinamento_status?.tipo === 'alerta_manutencao';
-    const hasAlerta = hasAlertaMaternidade || hasAlertaConfinamento;
+    // Verifica expiração do alerta para não travar o filtro "COM ALERTAS" com avisos antigos
+    const stConfF = f.confinamento_status;
+    let isExpiredF = false;
+    if (stConfF) {
+      let alertTimeF = 0;
+      if (typeof stConfF.timestamp === "number") {
+        alertTimeF = stConfF.timestamp > 1e11 ? stConfF.timestamp / 1000 : stConfF.timestamp;
+      } else if (stConfF.ultima_atualizacao?.seconds) {
+        alertTimeF = stConfF.ultima_atualizacao.seconds;
+      } else if (typeof stConfF.ultima_atualizacao?.toDate === "function") {
+        alertTimeF = stConfF.ultima_atualizacao.toDate().getTime() / 1000;
+      } else if (typeof stConfF.ultima_atualizacao === "string") {
+        const parsedF = new Date(stConfF.ultima_atualizacao).getTime();
+        if (!isNaN(parsedF)) alertTimeF = parsedF / 1000;
+      }
+      if (alertTimeF === 0 || (nowSecs - alertTimeF > 43200)) {
+        isExpiredF = true;
+      }
+    }
+    const hasAlertaOrdenha = f.status_sala?.status === 'EM_ANDAMENTO' || f.status_ordenha === 'EM ANDAMENTO' || f.ordenha?.status === 'EM_ANDAMENTO';
+    const hasAlertaConfinamento = f.status_manejo === 'EM ANDAMENTO' || (f.confinamento_status?.tipo === 'alerta_manutencao' && !isExpiredF);
+    const hasAlerta = hasAlertaMaternidade || hasAlertaConfinamento || hasAlertaOrdenha;
 
     const fModulos = (f.modulos || []).map((m: string) => String(m).toUpperCase());
     const hasMaternidade = fModulos.includes("MATERNIDADE") || !!f.maternidade || !!hbMat || !!hbPainel?.maternidade;
     const hasConfinamento = fModulos.includes("CONFINAMENTO") || !!f.confinamento || !!f.compost_barn_cama || !!f.status_ventiladores || !!hbConf || !!hbPainel?.confinamento;
-    const hasOrdenha = fModulos.includes("ORDENHA") || Object.keys(f).some(k => k.startsWith('historico_ordenha'));
+    const hasOrdenha = fModulos.includes("ORDENHA") || Object.keys(f).some(k => k.startsWith('historico_ordenha')) || !!f.status_sala || !!f.ordenha;
     const hasSalaEspera = fModulos.includes("SALA_ESPERA");
     const hasQuimicos = fModulos.includes("QUIMICOS");
     const hasVitu = fModulos.includes("VITU");
