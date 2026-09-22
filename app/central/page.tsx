@@ -14,7 +14,15 @@ const formatPhoneNumber = (phone: string) => {
   if (p.length === 13 && p.startsWith('55')) return `(${p.substring(2, 4)}) ${p.substring(4, 9)}-${p.substring(9)}`;
   if (p.length === 10) return `(${p.substring(0, 2)}) ${p.substring(2, 6)}-${p.substring(6)}`;
   if (p.length === 12 && p.startsWith('55')) return `(${p.substring(2, 4)}) ${p.substring(4, 8)}-${p.substring(8)}`;
-  return phone;
+};
+
+const MODULE_CONFIG: Record<string, { label: string, agenteKey: string, action: string, hbKey: string }> = {
+  MATERNIDADE: { label: "MATERNIDADE", agenteKey: "agente_maternidade", action: "maternidade", hbKey: "maternidade" },
+  CONFINAMENTO: { label: "CONFINAMENTO", agenteKey: "agente_confinamento", action: "confinamento", hbKey: "confinamento" },
+  ORDENHA: { label: "ORDENHA", agenteKey: "agente_ordenha", action: "ordenha", hbKey: "ordenha" },
+  SALA_ESPERA: { label: "SALA DE ESPERA", agenteKey: "agente_sala_espera", action: "sala_espera", hbKey: "sala_espera" },
+  QUIMICOS: { label: "CONTROLE QUÍMICO", agenteKey: "agente_quimicos", action: "quimicos", hbKey: "quimicos" },
+  VITU: { label: "FUNCIONÁRIO DIGITAL VITU", agenteKey: "agente_vitu", action: "vitu", hbKey: "vitu" },
 };
 
 // Componente para reutilizar UI do Cards
@@ -86,6 +94,13 @@ const FarmCard = ({
   const hasOrdenhaInfo = !!(horaInicioOrdenha || horaFimOrdenha);
   const showOrdenha = normalizedModulos.includes('ORDENHA') || !!statusSala || !!ultimaOrdenha || hasOrdenhaInfo;
   const hasVitu = true; // Sempre mostra o controle do VITU
+
+  // Coleta os módulos ativos (do banco + fallbacks legados)
+  const activeModules = new Set(normalizedModulos);
+  if (showMaternidade) activeModules.add('MATERNIDADE');
+  if (showConfinamento) activeModules.add('CONFINAMENTO');
+  if (showOrdenha) activeModules.add('ORDENHA');
+  if (hasVitu) activeModules.add('VITU');
 
   const formatarHora = (h?: string | null) => {
     if (!h) return "--:--";
@@ -468,7 +483,7 @@ const FarmCard = ({
       {/* Footer do Card */}
       <div className="mt-auto pt-1.5 flex flex-col gap-1.5">
         {/* Controle Remoto de IA */}
-        {(showMaternidade || showConfinamento || showOrdenha || hasVitu) && (
+        {activeModules.size > 0 && (
           <div className="bg-[#2C3E50]/5 rounded p-2 flex flex-col gap-2 border border-[#2C3E50]/10">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black uppercase text-[#2C3E50]">Controle de IA (Edge)</span>
@@ -491,47 +506,26 @@ const FarmCard = ({
               </div>
             </div>
 
-            {/* Maternidade */}
-            {showMaternidade && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_maternidade || hbPainel?.maternidade ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
-                  MATERNIDADE
-                </span>
-                <div className="flex gap-1">
-                  <button disabled={edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_maternidade ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
-                  <button disabled={!edgeStatus?.agente_maternidade} onClick={() => handleAction('maternidade', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_maternidade ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
+            {Array.from(activeModules).map((mod, idx) => {
+              const conf = MODULE_CONFIG[mod as keyof typeof MODULE_CONFIG];
+              if (!conf) return null;
+              
+              const isActive = edgeStatus?.[conf.agenteKey] || hbPainel?.[conf.hbKey];
+              const isAgenteOn = edgeStatus?.[conf.agenteKey];
+              
+              return (
+                <div key={mod} className={`flex items-center justify-between gap-2 ${idx > 0 ? 'mt-1' : ''}`}>
+                  <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${isActive ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
+                    {conf.label}
+                  </span>
+                  <div className="flex gap-1">
+                    <button disabled={isAgenteOn} onClick={() => handleAction(conf.action, 'start')} className={`px-2 py-1 transition-all duration-200 ${isAgenteOn ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
+                    <button disabled={!isAgenteOn} onClick={() => handleAction(conf.action, 'stop')} className={`px-2 py-1 transition-all duration-200 ${!isAgenteOn ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Confinamento */}
-            {showConfinamento && (
-              <div className="flex items-center justify-between gap-2 mt-1">
-                <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_confinamento || hbPainel?.confinamento ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
-                  CONFINAMENTO
-                </span>
-                <div className="flex gap-1">
-                  <button disabled={edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_confinamento ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
-                  <button disabled={!edgeStatus?.agente_confinamento} onClick={() => handleAction('confinamento', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_confinamento ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
-                </div>
-              </div>
-            )}
-
-            {/* VITU (Voz) */}
-            {hasVitu && (
-              <div className="flex items-center justify-between gap-2 mt-1">
-                <span className="text-[9px] font-bold text-[#2C3E50]/80 flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${edgeStatus?.agente_vitu ? 'bg-green-500 led-glow' : 'bg-gray-400'}`}></span>
-                  FUNCIONÁRIO DIGITAL VITU
-                </span>
-                <div className="flex gap-1">
-                  <button disabled={edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'start')} className={`px-2 py-1 transition-all duration-200 ${edgeStatus?.agente_vitu ? 'bg-green-600/50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>▶ Iniciar</button>
-                  <button disabled={!edgeStatus?.agente_vitu} onClick={() => handleAction('vitu', 'stop')} className={`px-2 py-1 transition-all duration-200 ${!edgeStatus?.agente_vitu ? 'bg-red-600/50 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'} text-white text-[8px] font-bold rounded uppercase cursor-pointer`}>⏹ Parar</button>
-                </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
 
