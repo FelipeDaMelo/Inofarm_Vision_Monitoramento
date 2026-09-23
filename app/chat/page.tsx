@@ -5,7 +5,8 @@ import Sidebar from "@/app/components/Sidebar";
 import WaveformPlayer from "@/app/components/WaveformPlayer";
 import EmojiPicker from "emoji-picker-react";
 import { db, storage } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs, limit, where } from "firebase/firestore";
+import BottomNav from "@/app/components/BottomNav";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 interface Chat {
@@ -42,6 +43,7 @@ export default function ChatInbox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
   const [isSending, setIsSending] = useState(false);
 
   // Edit Name State
@@ -101,7 +103,8 @@ export default function ChatInbox() {
       });
       setChats(chatList);
       
-      if (!activeChatId && chatList.length > 0) {
+      if (!initialLoadDone.current && chatList.length > 0) {
+        initialLoadDone.current = true;
         const urlParams = new URLSearchParams(window.location.search);
         const phoneParam = urlParams.get('phone');
         
@@ -109,17 +112,17 @@ export default function ChatInbox() {
           const target = chatList.find(c => (c.phone && c.phone.includes(phoneParam)) || c.id.includes(phoneParam));
           if (target) {
             setActiveChatId(target.id);
-          } else {
+          } else if (window.innerWidth >= 768) {
             setActiveChatId(chatList[0].id);
           }
-        } else {
+        } else if (window.innerWidth >= 768) {
           setActiveChatId(chatList[0].id);
         }
       }
     });
 
     return () => unsubscribe();
-  }, [activeChatId]);
+  }, []);
 
   // Escuta as mensagens do chat ativo
   useEffect(() => {
@@ -424,11 +427,11 @@ export default function ChatInbox() {
   const activeChat = chats.find(c => c.id === activeChatId);
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans">
+    <div className="flex h-[100dvh] pb-[64px] md:pb-0 bg-slate-100 font-sans overflow-hidden">
       <Sidebar />
 
       {/* Lista de Conversas (Esquerda) */}
-      <div className="w-96 bg-white border-r border-slate-200 flex flex-col shadow-sm z-0">
+      <div className={`${activeChatId ? 'hidden md:flex' : 'flex'} w-full md:w-96 bg-white border-r border-slate-200 flex-col shadow-sm z-0 shrink-0`}>
         <div className="h-20 bg-slate-50 flex items-center px-6 border-b border-slate-200 justify-between">
           <h1 className="text-xl font-bold text-[#2C3E50]">WhatsApp INOFARM VISION</h1>
         </div>
@@ -477,14 +480,17 @@ export default function ChatInbox() {
       </div>
 
       {/* Área de Chat (Direita) */}
-      <div className="flex-1 flex flex-col bg-[#efeae2] relative" style={{ backgroundImage: "url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')", backgroundSize: '400px', opacity: 0.95 }}>
+      <div className={`${!activeChatId ? 'hidden md:flex' : 'flex'} flex-1 flex-col bg-[#efeae2] relative w-full`} style={{ backgroundImage: "url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')", backgroundSize: '400px', opacity: 0.95 }}>
         
         {activeChat ? (
           <>
             {/* Chat Header */}
-            <div className="h-20 bg-white border-b border-slate-200 flex items-center px-6 shadow-sm z-10 justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-[#2C3E50] text-white rounded-full flex items-center justify-center font-bold uppercase">
+            <div className="h-20 bg-white border-b border-slate-200 flex items-center px-4 md:px-6 shadow-sm z-10 justify-between">
+              <div className="flex items-center gap-2 md:gap-4">
+                <button onClick={() => setActiveChatId(null)} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-full cursor-pointer">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <div className="w-10 h-10 bg-[#2C3E50] text-white rounded-full flex items-center justify-center font-bold uppercase shrink-0">
                   {activeChat.name.charAt(0)}
                 </div>
                 <div>
@@ -833,6 +839,7 @@ export default function ChatInbox() {
           </div>
         )}
       </div>
+      <BottomNav />
     </div>
   );
 }

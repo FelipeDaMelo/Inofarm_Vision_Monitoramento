@@ -6,6 +6,7 @@ import { ref, onValue } from "firebase/database";
 import { db, rtdb } from "@/lib/firebase";
 
 import Sidebar from "@/app/components/Sidebar";
+import BottomNav from "@/app/components/BottomNav";
 
 const formatPhoneNumber = (phone: string) => {
   if (!phone) return phone;
@@ -216,7 +217,7 @@ const FarmCard = ({
             key={idx}
             onClick={() => setViewingCamera(c.name)}
             disabled={!c.cam_ok}
-            className={`flex items-center justify-between px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest transition-all ${c.cam_ok ? 'bg-[#2C3E50]/5 text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white cursor-pointer' : 'bg-red-500/10 text-red-500/50 cursor-not-allowed'}`}
+            className={`flex items-center justify-between px-3 py-3 md:px-2 md:py-1 rounded text-[10px] md:text-[8px] font-black uppercase tracking-widest transition-all ${c.cam_ok ? 'bg-[#2C3E50]/5 text-[#2C3E50] hover:bg-[#2C3E50] hover:text-white cursor-pointer' : 'bg-red-500/10 text-red-500/50 cursor-not-allowed'}`}
           >
             <div className="flex items-center gap-1.5">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -366,7 +367,7 @@ const FarmCard = ({
                     onClick={handleDispensarManutencao}
                     disabled={dispensandoManutencao}
                     title="Dispensar este aviso"
-                    className="text-amber-700/60 hover:text-amber-900 hover:bg-amber-200/50 p-1 rounded font-black cursor-pointer transition-all shrink-0 ml-1"
+                    className="text-amber-700/60 hover:text-amber-900 hover:bg-amber-200/50 p-3 md:p-1 rounded font-black cursor-pointer transition-all shrink-0 ml-1"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
@@ -711,6 +712,7 @@ export default function CentralDashboard() {
   const [filterIA, setFilterIA] = useState("ALL");
   const [filterAlertas, setFilterAlertas] = useState("ALL");
   const [filterModulos, setFilterModulos] = useState<string[]>([]);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Relógio Mestre
   useEffect(() => {
@@ -869,9 +871,9 @@ export default function CentralDashboard() {
   });
 
   return (
-    <div className="flex h-screen bg-[#A59D92] font-sans overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#A59D92] font-sans overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col p-6 lg:p-10 custom-scrollbar overflow-y-auto relative text-[#2C3E50]">
+      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-10 pb-24 md:pb-6 lg:pb-10 custom-scrollbar overflow-y-auto relative text-[#2C3E50]">
         <header className="flex flex-col gap-4 bg-[#2C3E50] border border-[#2C3E50]/10 p-4 lg:px-6 rounded-2xl shadow-lg relative group shrink-0">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-white/10 rounded-t-2xl"></div>
 
@@ -915,53 +917,70 @@ export default function CentralDashboard() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center justify-center xl:justify-end gap-2 w-full">
-              <select value={filterConexao} onChange={e => setFilterConexao(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
-                <option value="ALL" className="bg-white text-[#2C3E50]">Conexão: TODAS</option>
-                <option value="ONLINE" className="bg-white text-[#2C3E50]">🟢 APENAS ONLINE</option>
-                <option value="OFFLINE" className="bg-white text-[#2C3E50]">🔴 APENAS OFFLINE</option>
-              </select>
-              <select value={filterIA} onChange={e => setFilterIA(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
-                <option value="ALL" className="bg-white text-[#2C3E50]">IA: TODAS</option>
-                <option value="RUNNING" className="bg-white text-[#2C3E50]">▶️ IA INICIADA</option>
-                <option value="STOPPED" className="bg-white text-[#2C3E50]">⏹️ IA PARADA</option>
-              </select>
-              <select value={filterAlertas} onChange={e => setFilterAlertas(e.target.value)} className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer">
-                <option value="ALL" className="bg-white text-[#2C3E50]">Alertas: TODOS</option>
-                <option value="COM_ALERTAS" className="bg-white text-[#2C3E50]">🚨 APENAS ALERTAS ATIVOS</option>
-              </select>
+            <div className="flex xl:justify-end gap-2 w-full md:w-auto relative">
+              <button 
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+                className="md:hidden w-full bg-[#2C3E50] border border-white/10 shadow-lg text-white p-3 rounded-xl flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest hover:bg-[#2C3E50]/80 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                Filtros ({fazendasFiltradas.length} Fazendas)
+              </button>
 
-              <div className="relative group">
-                <button className="bg-white/10 border border-white/10 text-white/90 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer flex items-center gap-1.5">
-                  Controle de IA: {filterModulos.length === 0 ? 'TODOS' : `${filterModulos.length} SELECIONADOS`}
-                  <svg className="w-3 h-3 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                </button>
-                <div className="absolute top-full right-0 mt-1 bg-white border border-[#2C3E50]/20 rounded-xl shadow-xl p-2 hidden group-hover:flex flex-col gap-1 z-50 min-w-[180px]">
-                  {[
-                    { val: 'CONFINAMENTO', label: 'Confinamento' },
-                    { val: 'MATERNIDADE', label: 'Maternidade' },
-                    { val: 'ORDENHA', label: 'Ordenha' },
-                    { val: 'SALA_ESPERA', label: 'Sala de Espera' },
-                    { val: 'QUIMICOS', label: 'Controle Químico' },
-                    { val: 'VITU', label: 'Vitu (Assistente)' },
-                  ].map(opt => (
-                    <label key={opt.val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-[#2C3E50]/5 rounded cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={filterModulos.includes(opt.val)}
-                        onChange={(e) => {
-                          if (e.target.checked) setFilterModulos(prev => [...prev, opt.val]);
-                          else setFilterModulos(prev => prev.filter(v => v !== opt.val));
-                        }}
-                        className="rounded border-[#2C3E50]/30 text-[#2C3E50] focus:ring-[#2C3E50]/50 cursor-pointer w-3.5 h-3.5"
-                      />
-                      <span className="text-[10px] font-bold uppercase text-[#2C3E50]">{opt.label}</span>
-                    </label>
-                  ))}
+              <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex absolute md:relative top-full left-0 right-0 mt-2 md:mt-0 flex-col md:flex-row items-stretch md:items-center justify-start xl:justify-end gap-2 w-full bg-[#1e2b3c] md:bg-transparent p-4 md:p-0 rounded-xl shadow-2xl md:shadow-none z-50 border border-white/10 md:border-transparent`}>
+                <div className="md:hidden flex justify-between items-center mb-2 pb-2 border-b border-white/10">
+                  <span className="text-white font-black text-xs uppercase tracking-widest">Filtros</span>
+                  <button onClick={() => setShowMobileFilters(false)} className="text-white/50 hover:text-white p-2 bg-white/5 rounded-full">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  </button>
                 </div>
-              </div>
-              <div className="text-[9px] text-white/70 font-black uppercase tracking-widest bg-black/20 px-3 py-2 rounded-xl border border-white/5 shrink-0 ml-1">
-                {fazendasFiltradas.length} EXIBIDAS
+
+                <select value={filterConexao} onChange={e => setFilterConexao(e.target.value)} className="w-full md:w-auto bg-white/10 border border-white/10 text-white/90 px-3 py-4 md:py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer appearance-none text-center md:text-left">
+                  <option value="ALL" className="bg-[#2C3E50] text-white">Conexão: TODAS</option>
+                  <option value="ONLINE" className="bg-[#2C3E50] text-white">🟢 APENAS ONLINE</option>
+                  <option value="OFFLINE" className="bg-[#2C3E50] text-white">🔴 APENAS OFFLINE</option>
+                </select>
+                <select value={filterIA} onChange={e => setFilterIA(e.target.value)} className="w-full md:w-auto bg-white/10 border border-white/10 text-white/90 px-3 py-4 md:py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer appearance-none text-center md:text-left">
+                  <option value="ALL" className="bg-[#2C3E50] text-white">IA: TODAS</option>
+                  <option value="RUNNING" className="bg-[#2C3E50] text-white">▶️ IA INICIADA</option>
+                  <option value="STOPPED" className="bg-[#2C3E50] text-white">⏹️ IA PARADA</option>
+                </select>
+                <select value={filterAlertas} onChange={e => setFilterAlertas(e.target.value)} className="w-full md:w-auto bg-white/10 border border-white/10 text-white/90 px-3 py-4 md:py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer appearance-none text-center md:text-left">
+                  <option value="ALL" className="bg-[#2C3E50] text-white">Alertas: TODOS</option>
+                  <option value="COM_ALERTAS" className="bg-[#2C3E50] text-white">🚨 APENAS ALERTAS ATIVOS</option>
+                </select>
+
+                <div className="relative group w-full md:w-auto">
+                  <button className="w-full bg-white/10 border border-white/10 text-white/90 px-3 py-4 md:py-2 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-white/20 hover:bg-white/20 transition-colors cursor-pointer flex items-center justify-center md:justify-start gap-1.5">
+                    Controle de IA: {filterModulos.length === 0 ? 'TODOS' : `${filterModulos.length} SELECIONADOS`}
+                    <svg className="w-3 h-3 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  <div className="absolute bottom-full right-0 mb-1 bg-white border border-[#2C3E50]/20 rounded-xl shadow-xl p-2 hidden group-hover:flex flex-col gap-1 z-50 w-full md:min-w-[180px]">
+                    {[
+                      { val: 'CONFINAMENTO', label: 'Confinamento' },
+                      { val: 'MATERNIDADE', label: 'Maternidade' },
+                      { val: 'ORDENHA', label: 'Ordenha' },
+                      { val: 'SALA_ESPERA', label: 'Sala de Espera' },
+                      { val: 'QUIMICOS', label: 'Controle Químico' },
+                      { val: 'VITU', label: 'Vitu (Assistente)' },
+                    ].map(opt => (
+                      <label key={opt.val} className="flex items-center gap-2 px-2 py-3 md:py-1.5 hover:bg-[#2C3E50]/5 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={filterModulos.includes(opt.val)}
+                          onChange={(e) => {
+                            if (e.target.checked) setFilterModulos(prev => [...prev, opt.val]);
+                            else setFilterModulos(prev => prev.filter(v => v !== opt.val));
+                          }}
+                          className="rounded border-[#2C3E50]/30 text-[#2C3E50] focus:ring-[#2C3E50]/50 cursor-pointer w-4 h-4 md:w-3.5 md:h-3.5"
+                        />
+                        <span className="text-[11px] md:text-[10px] font-bold uppercase text-[#2C3E50]">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="hidden md:flex text-[9px] text-white/70 font-black uppercase tracking-widest bg-black/20 px-3 py-3 md:py-2 rounded-xl border border-white/5 shrink-0 ml-1">
+                  {fazendasFiltradas.length} EXIBIDAS
+                </div>
               </div>
             </div>
           </div>
@@ -1013,6 +1032,7 @@ export default function CentralDashboard() {
           </div>
         </footer>
       </div>
+      <BottomNav />
     </div>
   );
 }

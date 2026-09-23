@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { collection, doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Sidebar from "@/app/components/Sidebar";
+import BottomNav from "@/app/components/BottomNav";
 
 const DISPONIVEIS_MODULOS = [
   { val: "MATERNIDADE", label: "Maternidade" },
@@ -126,9 +127,9 @@ export default function FazendasDashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-[#A59D92] font-sans overflow-hidden text-[#2C3E50]">
+    <div className="flex h-[100dvh] bg-[#A59D92] font-sans overflow-hidden text-[#2C3E50]">
       <Sidebar />
-      <div className="flex-1 flex flex-col p-6 lg:p-10 custom-scrollbar overflow-y-auto relative">
+      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-10 pb-24 md:pb-6 lg:pb-10 custom-scrollbar overflow-y-auto relative">
         <header className="flex justify-between items-center bg-[#2C3E50] text-white p-4 rounded-xl shadow-lg mb-6">
           <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-2">
             <span className="text-[#A59D92]">⚙️</span> Gestão de Fazendas & Módulos
@@ -426,6 +427,7 @@ export default function FazendasDashboard() {
           </div>
         </div>
       </div>
+      <BottomNav />
     </div>
   );
 }

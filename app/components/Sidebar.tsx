@@ -48,7 +48,7 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <div className="w-20 bg-[#2C3E50] flex flex-col items-center py-6 gap-8 text-white/50 border-r border-[#A59D92]/20 z-50 shadow-2xl shrink-0 h-screen">
+    <div className="w-20 bg-[#2C3E50] hidden md:flex flex-col items-center py-6 gap-8 text-white/50 border-r border-[#A59D92]/20 z-50 shadow-2xl shrink-0 h-screen">
       <a href="/central" className="w-10 h-10 bg-transparent flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer" title="Ir para Monitoramento">
         <img src="/logo_sem_escrito.png" alt="Inofarm" className="w-full h-full object-contain" />
       </a>

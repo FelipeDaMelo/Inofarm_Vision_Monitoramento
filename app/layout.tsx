@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,13 @@ const robotoMono = Roboto_Mono({
 export const metadata: Metadata = {
   title: "Inofarm Vision",
   description: "Sistema de monitoramento inteligente Inofarm",
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 import { AuthProvider } from "@/app/context/AuthContext";
